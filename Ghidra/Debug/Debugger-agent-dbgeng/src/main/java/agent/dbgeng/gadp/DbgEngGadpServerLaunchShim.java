@@ -13,14 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package generic.theme.laf;
+package agent.dbgeng.gadp;
 
-import javax.swing.UIDefaults;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
-public class WindowsClassicUiDefaultsMapper extends UiDefaultsMapper {
+import agent.dbgeng.gadp.DbgEngGadpServer.DbgEngRunner;
+import ghidra.GhidraApplicationLayout;
+import ghidra.GhidraLaunchable;
 
-	protected WindowsClassicUiDefaultsMapper(UIDefaults defaults) {
-		super(defaults);
+public class DbgEngGadpServerLaunchShim implements GhidraLaunchable {
+
+	@Override
+	public void launch(GhidraApplicationLayout layout, String[] args) throws Exception {
+		try {
+			new DbgEngRunner().run(args);
+		}
+		catch (Throwable t) {
+			System.err.println(ExceptionUtils.getMessage(t));
+			System.exit(1);
+		}
 	}
 
 }

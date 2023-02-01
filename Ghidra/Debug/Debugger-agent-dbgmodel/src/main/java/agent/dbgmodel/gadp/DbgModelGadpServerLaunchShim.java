@@ -13,13 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package generic.theme.laf;
+package agent.dbgmodel.gadp;
 
-import javax.swing.UIDefaults;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
-public class MacUiDefaultsMapper extends UiDefaultsMapper {
+import agent.dbgmodel.gadp.DbgModelGadpServer.DbgModelRunner;
+import ghidra.GhidraApplicationLayout;
+import ghidra.GhidraLaunchable;
 
-	protected MacUiDefaultsMapper(UIDefaults defaults) {
-		super(defaults);
+public class DbgModelGadpServerLaunchShim implements GhidraLaunchable {
+
+	@Override
+	public void launch(GhidraApplicationLayout layout, String[] args) throws Exception {
+		try {
+			new DbgModelRunner().run(args);
+		}
+		catch (Throwable t) {
+			System.err.println(ExceptionUtils.getMessage(t));
+			System.exit(1);
+		}
 	}
+
 }

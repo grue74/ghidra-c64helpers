@@ -427,7 +427,8 @@ public class ObjectBasedTraceRecorder implements TraceRecorder {
 
 	@Override
 	public Set<TargetRegisterBank> getTargetRegisterBanks(TraceThread thread, int frameLevel) {
-		return Set.of(objectRecorder.getTargetFrameInterface(thread, frameLevel, TargetRegisterBank.class));
+		return Set.of(
+			objectRecorder.getTargetFrameInterface(thread, frameLevel, TargetRegisterBank.class));
 	}
 
 	@Override
@@ -504,7 +505,7 @@ public class ObjectBasedTraceRecorder implements TraceRecorder {
 	protected TargetRegisterContainer getTargetRegisterContainer(TraceThread thread,
 			int frameLevel) {
 		if (!(thread instanceof TraceObjectThread tot)) {
-			throw new AssertionError();
+			throw new AssertionError("thread = " + thread);
 		}
 		TraceObject objThread = tot.getObject();
 		TraceObject regContainer = objThread.queryRegisterContainer(frameLevel);
@@ -737,6 +738,11 @@ public class ObjectBasedTraceRecorder implements TraceRecorder {
 	}
 
 	@Override
+	public boolean isSupportsActivation() {
+		return objectRecorder.isSupportsActivation;
+	}
+
+	@Override
 	public TargetObject getFocus() {
 		return curFocus;
 	}
@@ -760,6 +766,28 @@ public class ObjectBasedTraceRecorder implements TraceRecorder {
 			}
 		}
 		Msg.info(this, "Could not find suitable focus scope for " + focus);
+		return CompletableFuture.completedFuture(false);
+	}
+
+	@Override
+	public CompletableFuture<Boolean> requestActivation(TargetObject active) {
+		for (TargetActiveScope scope : objectRecorder.collectTargetSuccessors(target,
+			TargetActiveScope.class)) {
+			if (PathUtils.isAncestor(scope.getPath(), active.getPath())) {
+				return scope.requestActivation(active).thenApply(__ -> true).exceptionally(ex -> {
+					ex = AsyncUtils.unwrapThrowable(ex);
+					String msg = "Could not activate " + active + ": " + ex.getMessage();
+					if (ex instanceof DebuggerModelAccessException) {
+						Msg.info(this, msg);
+					}
+					else {
+						Msg.error(this, msg, ex);
+					}
+					return false;
+				});
+			}
+		}
+		Msg.info(this, "Could not find suitable active scope for " + active);
 		return CompletableFuture.completedFuture(false);
 	}
 

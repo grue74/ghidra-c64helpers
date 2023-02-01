@@ -13,14 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package generic.theme.laf;
+package agent.gdb.gadp;
 
-import javax.swing.UIDefaults;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
-public class WindowsUiDefaultsMapper extends UiDefaultsMapper {
+import agent.gdb.gadp.GdbGadpServer.Runner;
+import ghidra.GhidraApplicationLayout;
+import ghidra.GhidraLaunchable;
 
-	protected WindowsUiDefaultsMapper(UIDefaults defaults) {
-		super(defaults);
+public class GdbGadpServerLaunchShim implements GhidraLaunchable {
+
+	@Override
+	public void launch(GhidraApplicationLayout layout, String[] args) throws Exception {
+		try {
+			new Runner().run(args);
+		}
+		catch (Throwable t) {
+			System.err.println(ExceptionUtils.getMessage(t));
+			System.exit(1);
+		}
 	}
 
 }
