@@ -1,6 +1,5 @@
 /* ###
  * IP: GHIDRA
- * REVIEWED: YES
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ghidra.framework.model;
+package agent.dbgeng.manager.cmd;
 
-/**
- * Listener that is notified when the default tool specification changes.
- */
-public interface DefaultToolChangeListener {
+import agent.dbgeng.dbgeng.DebugThreadId;
+import agent.dbgeng.manager.impl.DbgManagerImpl;
 
-	/**
-	 * Notification that the default tool specification changed
-	 * @param oldName name of the old default tool
-	 * @param newName name of the new default tool
-	 */
-	void defaultToolChanged(String oldName, String newName);
+public class DbgStepToAddressCommand extends AbstractDbgExecToAddressCommand {
+
+	public DbgStepToAddressCommand(DbgManagerImpl manager, DebugThreadId id, String address) {
+		super(manager, id, address);
+	}
+
+	@Override
+	protected String generateCommand(String address) {
+		return "pa " + address;
+	}
 }
