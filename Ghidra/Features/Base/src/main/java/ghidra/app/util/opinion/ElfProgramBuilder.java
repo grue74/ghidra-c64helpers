@@ -51,6 +51,7 @@ import ghidra.program.model.scalar.Scalar;
 import ghidra.program.model.symbol.*;
 import ghidra.program.model.util.AddressSetPropertyMap;
 import ghidra.program.model.util.CodeUnitInsertionException;
+import ghidra.program.util.ExternalSymbolResolver;
 import ghidra.util.*;
 import ghidra.util.datastruct.*;
 import ghidra.util.exception.*;
@@ -454,8 +455,7 @@ class ElfProgramBuilder extends MemorySectionResolver implements ElfLoadHelper {
 			String[] neededLibs = elf.getDynamicLibraryNames();
 			for (String neededLib : neededLibs) {
 				monitor.checkCanceled();
-				props.setString(
-					ElfLoader.ELF_REQUIRED_LIBRARY_PROPERTY_PREFIX + pad(libraryIndex++) + "]",
+				props.setString(ExternalSymbolResolver.getRequiredLibraryProperty(libraryIndex++),
 					neededLib);
 			}
 		}
@@ -2166,13 +2166,16 @@ class ElfProgramBuilder extends MemorySectionResolver implements ElfLoadHelper {
 			if (isEntry) {
 				program.getSymbolTable().addExternalEntryPoint(address);
 			}
+			if (StringUtils.isEmpty(name)) {
+				name = null;
+			}
 			FunctionManager functionMgr = program.getFunctionManager();
 			function = functionMgr.getFunctionAt(address);
 			if (function == null) {
-				function = functionMgr.createFunction(null, address, new AddressSet(address),
+				function = functionMgr.createFunction(name, address, new AddressSet(address),
 					SourceType.IMPORTED);
 			}
-			else if (!StringUtils.isEmpty(name)) {
+			else if (name != null) {
 				createSymbol(address, name, true, false, null);
 			}
 		}
