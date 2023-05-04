@@ -89,6 +89,7 @@ src/main/help/help/topics/VariableValueHoverPlugin/images/VariableValueHoverPlug
 src/main/help/help/topics/VariableValueHoverPlugin/images/VariableValueHoverPluginDecompiler.png||GHIDRA||||END|
 src/main/help/help/topics/VariableValueHoverPlugin/images/VariableValueHoverPluginListing.png||GHIDRA||||END|
 src/main/resources/defaultTools/Debugger.tool||GHIDRA||||END|
+src/main/resources/defaultTools/Emulator.tool||GHIDRA||||END|
 src/main/resources/images/add.png||FAMFAMFAM Icons - CC 2.5|||famfamfam silk icon set|END|
 src/main/resources/images/attach.png||GHIDRA||||END|
 src/main/resources/images/autoread.png||GHIDRA||||END|
@@ -113,6 +114,7 @@ src/main/resources/images/debugger32.png||GHIDRA||||END|
 src/main/resources/images/delete.png||FAMFAMFAM Icons - CC 2.5|||famfamfam silk icon set|END|
 src/main/resources/images/detach.png||GHIDRA||||END|
 src/main/resources/images/disconnect.png||GHIDRA||||END|
+src/main/resources/images/emulator32.png||GHIDRA||||END|
 src/main/resources/images/interrupt.png||GHIDRA||||END|
 src/main/resources/images/kill.png||GHIDRA||||END|
 src/main/resources/images/launch.png||GHIDRA||||END|
@@ -160,6 +162,7 @@ src/main/svg/console.svg||GHIDRA||||END|
 src/main/svg/debugger.svg||GHIDRA||||END|
 src/main/svg/detach.svg||GHIDRA||||END|
 src/main/svg/disconnect.svg||GHIDRA||||END|
+src/main/svg/emulator32.svg||GHIDRA||||END|
 src/main/svg/interrupt.svg||GHIDRA||||END|
 src/main/svg/kill.svg||GHIDRA||||END|
 src/main/svg/launch.svg||GHIDRA||||END|
