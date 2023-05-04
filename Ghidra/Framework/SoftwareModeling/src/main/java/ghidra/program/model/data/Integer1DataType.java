@@ -15,9 +15,7 @@
  */
 package ghidra.program.model.data;
 
-public class Integer1DataType extends AbstractIntegerDataType {
-
-	private static final long serialVersionUID = 1L;
+public class Integer1DataType extends AbstractSignedIntegerDataType {
 
 	/** A statically defined Integer1DataType instance.*/
 	public final static Integer1DataType dataType = new Integer1DataType();
@@ -27,7 +25,7 @@ public class Integer1DataType extends AbstractIntegerDataType {
 	}
 
 	public Integer1DataType(DataTypeManager dtm) {
-		super("int1", true, dtm);
+		super("int1", dtm);
 	}
 
 	@Override
