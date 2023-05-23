@@ -32,7 +32,7 @@ public class UnsignedInteger1DataType extends AbstractUnsignedIntegerDataType {
 	}
 
 	public UnsignedInteger1DataType(DataTypeManager dtm) {
-		super("uint3", dtm);
+		super("uint1", dtm);
 	}
 
 	@Override
