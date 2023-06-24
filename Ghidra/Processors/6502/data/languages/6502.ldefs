@@ -29,5 +29,20 @@
     <compiler name="default" spec="6502.cspec" id="default"/>
 	<external_name tool="IDA-PRO" name="m65c02"/>
   </language>
+
+<language processor="6510"
+            endian="little"
+            size="16"
+            variant="default"
+            version="1.0"
+            slafile="6510.sla"
+            processorspec="6510.pspec"
+            manualindexfile="../manuals/6502.idx"
+            id="6510:LE:16:default">
+    <description>6510 Microcontroller Family</description>
+    <compiler name="default" spec="6510.cspec" id="default"/>
+    <external_name tool="IDA-PRO" name="m6502"/>
+  </language>
+
   
 </language_definitions>
