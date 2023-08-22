@@ -22,6 +22,7 @@ import ghidra.program.model.lang.CompilerSpec;
 import mdemangler.datatype.MDDataType;
 import mdemangler.datatype.MDVarArgsType;
 import mdemangler.datatype.complex.*;
+import mdemangler.datatype.extended.MDArrayReferencedType;
 import mdemangler.datatype.modifier.*;
 import mdemangler.functiontype.*;
 import mdemangler.naming.*;
@@ -143,7 +144,8 @@ public class MDMangGhidra extends MDMang {
 			object = processObjectCPP(objectCPP);
 			object.setSpecialPrefix(((MDObjectBracket) item).getPrefix());
 		}
-		//TODO: put other objectReserved derivative types here and return something that Ghidra can use.
+		//TODO: put other objectReserved derivative types here and return something that Ghidra
+		// can use.
 		else {
 			object =
 				new DemangledUnknown(mangledSource, demangledSource, objectReserved.toString());
@@ -452,7 +454,8 @@ public class MDMangGhidra extends MDMang {
 	}
 
 	private DemangledFunctionReference processDemangledFunctionReference(MDModifierType refType) {
-		if (!((refType instanceof MDReferenceType) || (refType instanceof MDDataRefRefType))) {
+		if (!((refType instanceof MDReferenceType) ||
+			(refType instanceof MDDataRightReferenceType))) {
 			return null; // Not planning on anything else yet.
 		}
 		DemangledFunctionReference functionReference =
@@ -610,18 +613,19 @@ public class MDMangGhidra extends MDMang {
 				// modifierType.getArrayString();
 				// resultDataType.setArray();
 				//Processing the referenced type (for Ghidra, and then setting attributes on it)
-				processDataType(resultDataType, (MDDataType) modifierType.getReferencedType());
-				resultDataType.incrementPointerLevels();
+				DemangledDataType newResult =
+					processDataType(resultDataType, (MDDataType) modifierType.getReferencedType());
+				newResult.incrementPointerLevels();
 				if (modifierType.getCVMod().isConst()) {
-					resultDataType.setConst();
+					newResult.setConst();
 				}
 				if (modifierType.getCVMod().isVolatile()) {
-					resultDataType.setVolatile();
+					newResult.setVolatile();
 				}
 				if (modifierType.getCVMod().isPointer64()) {
-					resultDataType.setPointer64();
+					newResult.setPointer64();
 				}
-				return resultDataType;
+				return newResult;
 			}
 			// TODO: fix. Following is a kludge because DemangledObject has no
 			// DemangledReference
@@ -648,18 +652,19 @@ public class MDMangGhidra extends MDMang {
 					return fr;
 				}
 				//Processing the referenced type (for Ghidra, and then setting attributes on it)
-				processDataType(resultDataType, (MDDataType) modifierType.getReferencedType());
-				resultDataType.setReference(); // Not sure if we should do/use this.
+				DemangledDataType newResult =
+					processDataType(resultDataType, (MDDataType) modifierType.getReferencedType());
+				newResult.setLValueReference();
 				if (modifierType.getCVMod().isConst()) {
-					resultDataType.setConst();
+					newResult.setConst();
 				}
 				if (modifierType.getCVMod().isVolatile()) {
-					resultDataType.setVolatile();
+					newResult.setVolatile();
 				}
 				if (modifierType.getCVMod().isPointer64()) {
-					resultDataType.setPointer64();
+					newResult.setPointer64();
 				}
-				return resultDataType;
+				return newResult;
 			}
 			// TODO: fix. Following is a kludge because DemangledObject has no DemangledReference
 			// with corresponding referencedType.
@@ -702,7 +707,7 @@ public class MDMangGhidra extends MDMang {
 				}
 				return resultDataType;
 			}
-			else if (modifierType instanceof MDDataRefRefType) {
+			else if (modifierType instanceof MDDataRightReferenceType) {
 				if ((modifierType.getReferencedType() instanceof MDFunctionType)) {
 					resultDataType.setName(getDataTypeName(datatype));
 					// TODO---------what are we returning... need to work on called routine.
@@ -725,7 +730,7 @@ public class MDMangGhidra extends MDMang {
 				}
 				//Processing the referenced type (for Ghidra, and then setting attributes on it)
 				processDataType(resultDataType, (MDDataType) modifierType.getReferencedType());
-				resultDataType.setReference(); // Not sure if we should do/use this.
+				resultDataType.setRValueReference();
 				if (modifierType.getCVMod().isConst()) {
 					resultDataType.setConst();
 				}
@@ -736,9 +741,6 @@ public class MDMangGhidra extends MDMang {
 					resultDataType.setPointer64();
 				}
 				return resultDataType;
-			}
-			else if (modifierType instanceof MDStdNullPtrType) {
-				resultDataType.setName(datatype.toString());
 			}
 			else {
 				// not pointer, reference, or array type
@@ -808,13 +810,19 @@ public class MDMangGhidra extends MDMang {
 			}
 		}
 		else if (datatype instanceof MDReferenceType) {
-			resultDataType.setReference();
+			resultDataType.setLValueReference();
 		}
 		else if (datatype instanceof MDArrayBasicType) {
 			resultDataType.setArray(1);
 		}
 		else if (datatype instanceof MDVarArgsType) {
 			resultDataType.setVarArgs();
+		}
+		else if (datatype instanceof MDArrayReferencedType arrRefType) {
+			return processDataType(resultDataType, arrRefType.getReferencedType());
+		}
+		else if (datatype instanceof MDStdNullPtrType) {
+			resultDataType.setName(datatype.toString());
 		}
 		else {
 			// MDDataType
@@ -849,6 +857,3 @@ public class MDMangGhidra extends MDMang {
 		return dataType.toString();
 	}
 }
-
-/******************************************************************************/
-/******************************************************************************/
