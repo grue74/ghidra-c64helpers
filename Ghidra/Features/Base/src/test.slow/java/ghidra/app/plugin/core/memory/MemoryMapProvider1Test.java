@@ -133,7 +133,8 @@ public class MemoryMapProvider1Test extends AbstractGhidraHeadedIntegrationTest 
 			String name = action.getName();
 			if (name.equals("Add Block") || name.equals("Merge Blocks") ||
 				name.equals("Delete Block") || name.equals("Set Image Base") ||
-				name.equals("Memory Map") || name.equals("Close Window")) {
+				name.equals("Memory Map") || name.equals("Close Window") ||
+				name.equals("Make Selection")) {
 				assertTrue("Action should be enabled for  a multi-row selection - '" + name + "'",
 					action.isEnabled());
 			}
@@ -673,8 +674,7 @@ public class MemoryMapProvider1Test extends AbstractGhidraHeadedIntegrationTest 
 		waitForSwing();
 		provider = plugin.getMemoryMapProvider();
 		table = provider.getTable();
-		model = (MemoryMapModel) table.getModel();
-
+		model = provider.getModel();
 	}
 
 	private Address getAddr(long offset) {
