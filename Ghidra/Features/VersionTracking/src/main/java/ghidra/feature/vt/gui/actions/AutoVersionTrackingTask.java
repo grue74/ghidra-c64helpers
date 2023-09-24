@@ -15,28 +15,61 @@
  */
 package ghidra.feature.vt.gui.actions;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import javax.swing.SwingConstants;
 
-import ghidra.feature.vt.api.correlator.program.*;
-import ghidra.feature.vt.api.main.*;
+import ghidra.feature.vt.api.correlator.program.CombinedFunctionAndDataReferenceProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.DataReferenceProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.DuplicateFunctionMatchProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.ExactDataMatchProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.ExactMatchBytesProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.ExactMatchInstructionsProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.ExactMatchMnemonicsProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.FunctionReferenceProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.SymbolNameProgramCorrelatorFactory;
+import ghidra.feature.vt.api.correlator.program.VTAbstractReferenceProgramCorrelatorFactory;
+import ghidra.feature.vt.api.main.VTAssociation;
+import ghidra.feature.vt.api.main.VTAssociationManager;
+import ghidra.feature.vt.api.main.VTAssociationStatus;
+import ghidra.feature.vt.api.main.VTAssociationType;
+import ghidra.feature.vt.api.main.VTMarkupItem;
+import ghidra.feature.vt.api.main.VTMatch;
+import ghidra.feature.vt.api.main.VTMatchSet;
+import ghidra.feature.vt.api.main.VTProgramCorrelator;
+import ghidra.feature.vt.api.main.VTProgramCorrelatorFactory;
+import ghidra.feature.vt.api.main.VTSession;
 import ghidra.feature.vt.api.util.VTAssociationStatusException;
 import ghidra.feature.vt.api.util.VTOptions;
-import ghidra.feature.vt.gui.plugin.VTController;
+import ghidra.feature.vt.gui.plugin.AddressCorrelatorManager;
 import ghidra.feature.vt.gui.task.ApplyMarkupItemTask;
+import ghidra.feature.vt.gui.util.ImpliedMatchUtils;
 import ghidra.feature.vt.gui.util.MatchInfo;
+import ghidra.feature.vt.gui.util.MatchInfoFactory;
+import ghidra.feature.vt.gui.util.VTOptionDefines;
 import ghidra.framework.options.ToolOptions;
-import ghidra.framework.plugintool.PluginTool;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSetView;
 import ghidra.program.model.lang.OperandType;
-import ghidra.program.model.listing.*;
+import ghidra.program.model.listing.CodeUnit;
+import ghidra.program.model.listing.CodeUnitIterator;
+import ghidra.program.model.listing.Function;
+import ghidra.program.model.listing.FunctionManager;
+import ghidra.program.model.listing.Instruction;
+import ghidra.program.model.listing.InstructionIterator;
+import ghidra.program.model.listing.Program;
 import ghidra.program.util.ListingDiff;
 import ghidra.util.Msg;
 import ghidra.util.exception.AssertException;
 import ghidra.util.exception.CancelledException;
-import ghidra.util.task.*;
+import ghidra.util.task.Task;
+import ghidra.util.task.TaskMonitor;
+import ghidra.util.task.WrappingTaskMonitor;
 import util.CollectionUtils;
 
 /**
@@ -69,43 +102,42 @@ public class AutoVersionTrackingTask extends Task {
 
 	private static final String NAME = "Auto Version Tracking Command";
 	private VTSession session;
+	private MatchInfoFactory matchInfoFactory;
+	private AddressCorrelatorManager addressCorrelator;
 	private Program sourceProgram;
 	private Program destinationProgram;
-	private PluginTool serviceProvider;
 	private AddressSetView sourceAddressSet;
 	private AddressSetView destinationAddressSet;
-	private VTController controller;
 	private double minCombinedReferenceCorrelatorScore;
 	private double minCombinedReferenceCorrelatorConfidence;
-	private final ToolOptions applyOptions;
+	private ToolOptions applyOptions;
 	private String statusMsg = null;
 	private static int NUM_CORRELATORS = 8;
 
 	/**
 	 * Constructor for a modal/blocking AutoVersionTrackingTask
 	 *
-	 * @param controller The Version Tracking controller for this session containing option and
-	 * tool information needed for this command.
+
 	 * @param session The Version Tracking session containing the source, destination, correlator
 	 * and match information needed for this command.
+	 * @param options the options used when applying matches
 	 * @param minCombinedReferenceCorrelatorScore The minimum score used to limit matches created by
 	 * the Combined Reference Correlator.
 	 * @param minCombinedReferenceCorrelatorConfidence The minimum confidence used to limit matches
 	 * created by the Combined Reference Correlator.
 	 */
-	public AutoVersionTrackingTask(VTController controller, VTSession session,
+	public AutoVersionTrackingTask(VTSession session, ToolOptions options,
 			double minCombinedReferenceCorrelatorScore,
 			double minCombinedReferenceCorrelatorConfidence) {
 		super(NAME, true, true, true);
 		this.session = session;
+		this.matchInfoFactory = new MatchInfoFactory();
+		this.addressCorrelator = new AddressCorrelatorManager(() -> session);
 		this.sourceProgram = session.getSourceProgram();
 		this.destinationProgram = session.getDestinationProgram();
-		this.serviceProvider = controller.getTool();
-		this.controller = controller;
 		this.minCombinedReferenceCorrelatorScore = minCombinedReferenceCorrelatorScore;
 		this.minCombinedReferenceCorrelatorConfidence = minCombinedReferenceCorrelatorConfidence;
-		this.applyOptions = controller.getOptions();
-
+		this.applyOptions = options;
 	}
 
 	@Override
@@ -143,8 +175,23 @@ public class AutoVersionTrackingTask extends Task {
 		int count = 0;
 		monitor.doInitialize(NUM_CORRELATORS);
 
+		// save user option and use to determine whether to handle implied matches at all later
+		boolean autoCreateImpliedMatches =
+			applyOptions.getBoolean(VTOptionDefines.AUTO_CREATE_IMPLIED_MATCH, false);
+
+		// Turn off auto implied matches and handle later if user had that option set
+		// This is because when run from the VT GUI action implied matches are created automatically
+		// by the VT controller when the option is set but they are not created when called from a 
+		// script since there is no VT controller in that case. If allowed to happen in 
+		// GUI then they will happen twice when called later in this task and the implied match 
+		// votes will be wrong. This Task doesn't know if called from GUI or script so this is 
+		// klunky but will make sure they are only processed once and will make sure the user option
+		// is put back the way the user had it. 
+		applyOptions.setBoolean(VTOptionDefines.AUTO_CREATE_IMPLIED_MATCH, false);
+
 		// Use default options for all of the "exact" correlators; passed in options for the others
 		VTOptions options;
+
 
 		// Run the correlators in the following order:
 		// Do this one first because we don't want it to find ones that get markup applied by later
@@ -268,7 +315,62 @@ public class AutoVersionTrackingTask extends Task {
 		}
 		statusMsg = NAME + " completed successfully" + applyMarkupStatus;
 
-		controller.getTool().setStatusInfo(statusMsg);
+		// if user had implied match option chosen then figure out implied matches now
+		if (autoCreateImpliedMatches) {
+			processImpliedMatches(monitor);
+		}
+
+		// reset auto implied match option to user choice
+		applyOptions.setBoolean(VTOptionDefines.AUTO_CREATE_IMPLIED_MATCH,
+			autoCreateImpliedMatches);
+
+	}
+
+	private void processImpliedMatches(TaskMonitor monitor) throws CancelledException {
+
+		List<VTAssociation> processedSrcDestPairs = new ArrayList<>();
+		List<VTMatchSet> matchSets = session.getMatchSets();
+
+		monitor.setMessage("Processing Implied Matches...");
+		monitor.initialize(matchSets.size());
+
+		for (VTMatchSet matchSet : matchSets) {
+			monitor.checkCancelled();
+
+			Collection<VTMatch> matches = matchSet.getMatches();
+			for (VTMatch match : matches) {
+				monitor.checkCancelled();
+
+				VTAssociation association = match.getAssociation();
+
+				// Implied matches currently only created for functions so skip matches that are
+				// data matches
+				if (association.getType() == VTAssociationType.DATA) {
+					continue;
+				}
+
+				// Implied matches should only be created for matches that user has accepted as 
+				// good matches
+				if (association.getStatus() != VTAssociationStatus.ACCEPTED) {
+					continue;
+				}
+				// only process the same match pair once so implied vote counts are not overinflated
+				if (processedSrcDestPairs.contains(association)) {
+					continue;
+				}
+
+				MatchInfo matchInfo = matchInfoFactory.getMatchInfo(match, addressCorrelator);
+
+				ImpliedMatchUtils.updateImpliedMatchForAcceptedAssocation(
+					matchInfo.getSourceFunction(),
+					matchInfo.getDestinationFunction(), session,
+					addressCorrelator, monitor);
+
+				processedSrcDestPairs.add(association);
+			}
+			monitor.incrementProgress();
+		}
+
 	}
 
 	private int getNumberOfDataMatches(TaskMonitor monitor) throws CancelledException {
@@ -323,8 +425,8 @@ public class AutoVersionTrackingTask extends Task {
 		monitor.setMessage(
 			"Finding and applying good " + factory.getName() + " matches and markup.");
 
-		VTProgramCorrelator correlator = factory.createCorrelator(serviceProvider, sourceProgram,
-			sourceAddressSet, destinationProgram, destinationAddressSet, options);
+		VTProgramCorrelator correlator = factory.createCorrelator(sourceProgram, sourceAddressSet,
+			destinationProgram, destinationAddressSet, options);
 
 		VTMatchSet results = correlator.correlate(session, monitor);
 		monitor.initialize(results.getMatchCount());
@@ -353,8 +455,8 @@ public class AutoVersionTrackingTask extends Task {
 		monitor.setMessage(
 			"Finding and applying good " + factory.getName() + " matches and markup.");
 
-		VTProgramCorrelator correlator = factory.createCorrelator(serviceProvider, sourceProgram,
-			sourceAddressSet, destinationProgram, destinationAddressSet, options);
+		VTProgramCorrelator correlator = factory.createCorrelator(sourceProgram, sourceAddressSet,
+			destinationProgram, destinationAddressSet, options);
 
 		VTMatchSet results = correlator.correlate(session, monitor);
 		monitor.initialize(results.getMatchCount());
@@ -395,14 +497,14 @@ public class AutoVersionTrackingTask extends Task {
 				continue;
 			}
 
-			MatchInfo matchInfo = controller.getMatchInfo(match);
+			MatchInfo matchInfo = matchInfoFactory.getMatchInfo(match, addressCorrelator);
 			Collection<VTMarkupItem> markupItems = matchInfo.getAppliableMarkupItems(monitor);
 			if (markupItems == null || markupItems.size() == 0) {
 				continue;
 			}
 
 			ApplyMarkupItemTask markupTask =
-				new ApplyMarkupItemTask(controller.getSession(), markupItems, applyOptions);
+				new ApplyMarkupItemTask(session, markupItems, applyOptions);
 
 			markupTask.run(monitor);
 			boolean currentMatchHasErrors = markupTask.hasErrors();
@@ -473,7 +575,7 @@ public class AutoVersionTrackingTask extends Task {
 			// instructions as each other but not necessarily the same operands.
 			Set<VTMatch> relatedMatches = getRelatedMatches(match, matches, monitor);
 
-			// remove related matches from the copy of set of matches which gets checked 
+			// remove related matches from the copy of set of matches which gets checked
 			// and skipped if not in the set
 			removeMatches(copyOfMatches, relatedMatches);
 
@@ -538,12 +640,12 @@ public class AutoVersionTrackingTask extends Task {
 			if (tryToSetAccepted(association)) {
 
 				// If accept match succeeds apply the markup for the match
-				MatchInfo matchInfo = controller.getMatchInfo(match);
+				MatchInfo matchInfo = matchInfoFactory.getMatchInfo(match, addressCorrelator);
 				Collection<VTMarkupItem> markupItems = matchInfo.getAppliableMarkupItems(monitor);
 				if (markupItems != null && markupItems.size() != 0) {
 
 					ApplyMarkupItemTask markupTask =
-						new ApplyMarkupItemTask(controller.getSession(), markupItems, applyOptions);
+						new ApplyMarkupItemTask(session, markupItems, applyOptions);
 					markupTask.run(monitor);
 					boolean currentMatchHasErrors = markupTask.hasErrors();
 					if (currentMatchHasErrors) {

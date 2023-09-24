@@ -156,7 +156,8 @@ protected:
     type_incomplete = 0x400,	///< Set if \b this (recursive) data-type has not been fully defined yet
     needs_resolution = 0x800,	///< Datatype (union, pointer to union) needs resolution before propagation
     force_format = 0x7000,	///< 3-bits encoding display format, 0=none, 1=hex, 2=dec, 3=oct, 4=bin, 5=char
-    truncate_bigendian = 0x8000	///< Pointer can be truncated and is big endian
+    truncate_bigendian = 0x8000,	///< Pointer can be truncated and is big endian
+    pointer_to_array = 0x10000	///< Data-type is a pointer to an array
   };
   friend class TypeFactory;
   friend struct DatatypeCompare;
@@ -193,6 +194,7 @@ public:
   bool isVariableLength(void) const { return ((flags&variable_length)!=0); }	///< Is \b this a variable length structure
   bool hasSameVariableBase(const Datatype *ct) const;		///< Are these the same variable length data-type
   bool isOpaqueString(void) const { return ((flags&opaque_string)!=0); }	///< Is \b this an opaquely encoded string
+  bool isPointerToArray(void) const { return ((flags&pointer_to_array)!=0); }	///< Is \b this a pointer to an array
   bool isPointerRel(void) const { return ((flags & is_ptrrel)!=0); }	///< Is \b this a TypePointerRel
   bool isFormalPointerRel(void) const { return (flags & (is_ptrrel | has_stripped))==is_ptrrel; }	///< Is \b this a non-ephemeral TypePointerRel
   bool hasStripped(void) const { return (flags & has_stripped)!=0; }	///< Return \b true if \b this has a stripped form
@@ -213,10 +215,30 @@ public:
   virtual Datatype *getSubType(int8 off,int8 *newoff) const; ///< Recover component data-type one-level down
   virtual Datatype *nearestArrayedComponentForward(int8 off,int8 *newoff,int8 *elSize) const;
   virtual Datatype *nearestArrayedComponentBackward(int8 off,int8 *newoff,int8 *elSize) const;
-  virtual int4 getHoleSize(int4 off) const { return 0; }	///< Get number of bytes at the given offset that are padding
-  virtual int4 numDepend(void) const { return 0; }	///< Return number of component sub-types
-  virtual Datatype *getDepend(int4 index) const { return (Datatype *)0; }	///< Return the i-th component sub-type
-  virtual void printNameBase(ostream &s) const { if (!name.empty()) s<<name[0]; } ///< Print name as short prefix
+
+  /// \brief Get number of bytes at the given offset that are padding
+  ///
+  /// For the given offset into \b this data-type, determine if the byte at that offset is considered
+  /// padding, and if so, return the number of bytes in the padding. Otherwise, return 0.
+  /// \return the number of bytes of padding or 0
+  virtual int4 getHoleSize(int4 off) const { return 0; }
+
+  /// \brief Get the number of component sub-types making up \b this data-type
+  ///
+  /// \return the number of components
+  virtual int4 numDepend(void) const { return 0; }
+
+  /// \brief Get a specific component sub-type by index
+  ///
+  /// \param index is the index specifying which sub-type to return
+  /// \return the i-th component sub-type
+  virtual Datatype *getDepend(int4 index) const { return (Datatype *)0; }
+
+  /// \brief Print (part of) the name of \b this data-type as short prefix for a label
+  ///
+  /// This is used for building variable names to give some indication of the variable's underlying data-type
+  /// \param s is the stream write the name prefix to
+  virtual void printNameBase(ostream &s) const { if (!name.empty()) s<<name[0]; }
   virtual int4 compare(const Datatype &op,int4 level) const; ///< Order types for propagation
   virtual int4 compareDependency(const Datatype &op) const; ///< Compare for storage in tree structure
   virtual void encode(Encoder &encoder) const;	///< Encode the data-type to a stream
