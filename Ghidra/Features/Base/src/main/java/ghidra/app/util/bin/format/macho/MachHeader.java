@@ -18,11 +18,13 @@ package ghidra.app.util.bin.format.macho;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import ghidra.app.util.bin.*;
 import ghidra.app.util.bin.format.macho.commands.*;
 import ghidra.app.util.opinion.DyldCacheUtils.SplitDyldCache;
 import ghidra.program.model.data.*;
+import ghidra.program.model.mem.Memory;
 import ghidra.util.DataConverter;
 import ghidra.util.exception.DuplicateNameException;
 
@@ -186,6 +188,7 @@ public class MachHeader implements StructConverter {
 			LoadCommand lc = LoadCommandFactory.getLoadCommand(_reader, this, splitDyldCache);
 			_commands.add(lc);
 		}
+		sanitizeSegmentSectionNames(getAllSegments());
 		_parsed = true;
 		return this;
 	}
@@ -211,6 +214,7 @@ public class MachHeader implements StructConverter {
 				_reader.setPointerIndex(_reader.getPointerIndex() + size - 8);
 			}
 		}
+		sanitizeSegmentSectionNames(segments);
 		return segments;
 	}
 
@@ -381,6 +385,43 @@ public class MachHeader implements StructConverter {
 	@Override
 	public String toString() {
 		return getDescription();
+	}
+
+	/**
+	 * Sanitizes invalid segment/section names so they can be used as memory blocks and program tree
+	 * modules.
+	 * <p>
+	 * There are 3 main cases we have come across that need sanitization:
+	 * <ol>
+	 *   <li>Segment names have a null character in the middle</li>
+	 *   <li>.o files have one segment with a blank name, but the sections refer to more than one
+	 *   normal looking segment name</li>
+	 *   <li>Some segment and section name are complete garbage bytes</li>
+	 * </ol>
+	 * 
+	 * @param segments A {@link List} of {@link SegmentCommand segments} to sanitize
+	 */
+	private void sanitizeSegmentSectionNames(List<SegmentCommand> segments) {
+		Function<String, Boolean> invalid = s -> s.isBlank() || !Memory.isValidMemoryBlockName(s);
+		for (int i = 0; i < segments.size(); i++) {
+			SegmentCommand segment = segments.get(i);
+			segment.setSegmentName(segment.getSegmentName().replace('\0', '_'));
+			if (invalid.apply(segment.getSegmentName())) {
+				segment.setSegmentName("__INVALID.%d".formatted(i));
+			}
+			List<Section> sections = segment.getSections();
+			for (int j = 0; j < sections.size(); j++) {
+				Section section = sections.get(j);
+				section.setSegmentName(section.getSegmentName().replace('\0', '_'));
+				section.setSectionName(section.getSectionName().replace('\0', '_'));
+				if (invalid.apply(section.getSegmentName())) {
+					section.setSegmentName("__INVALID.%d".formatted(i));
+				}
+				if (invalid.apply(section.getSectionName())) {
+					section.setSectionName("__invalid.%d".formatted(j));
+				}
+			}
+		}
 	}
 
 	/**
