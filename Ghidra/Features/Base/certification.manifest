@@ -93,7 +93,7 @@ data/typeinfo/golang/golang_1.20_anybit_any.gdt||GHIDRA||||END|
 data/typeinfo/mac_10.9/mac_osx.gdt||GHIDRA||||END|
 data/typeinfo/win32/msvcrt/clsids.txt||GHIDRA||reviewed||END|
 data/typeinfo/win32/msvcrt/guids.txt||GHIDRA||reviewed||END|
-data/typeinfo/win32/msvcrt/iids.txt||GHIDRA||reviewed||END|
+data/typeinfo/win32/msvcrt/iids.txt||GHIDRA||||END|
 data/typeinfo/win32/msvcrt/syntaxes.txt||GHIDRA||||END|
 data/typeinfo/win32/windows_vs12_32.gdt||GHIDRA||||END|
 data/typeinfo/win32/windows_vs12_64.gdt||GHIDRA||||END|
@@ -389,7 +389,6 @@ src/main/help/help/topics/MemoryMapPlugin/images/MoveMemory.png||GHIDRA||||END|
 src/main/help/help/topics/MemoryMapPlugin/images/SetImageBaseDialog.png||GHIDRA||||END|
 src/main/help/help/topics/MemoryMapPlugin/images/SplitMemoryBlock.png||GHIDRA||||END|
 src/main/help/help/topics/Misc/Appendix.htm||GHIDRA||||END|
-src/main/help/help/topics/Misc/Tips.htm||NONE||||END|
 src/main/help/help/topics/Misc/Welcome_to_Ghidra_Help.htm||GHIDRA||||END|
 src/main/help/help/topics/Navigation/Navigation.htm||GHIDRA||||END|
 src/main/help/help/topics/Navigation/images/GoToDialog.png||GHIDRA||||END|

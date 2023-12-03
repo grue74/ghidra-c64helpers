@@ -122,6 +122,7 @@ public class AddressInput extends JPanel implements FocusableEditor {
 	/**
 	 * Returns the address in the field or null if the address can't
 	 * be parsed.
+	 * @return The address for the current value in the text field
 	 * 
 	 * @throws NullPointerException if AddressFactory has not been set.
 	 */
@@ -160,6 +161,14 @@ public class AddressInput extends JPanel implements FocusableEditor {
 		return textField.getText().length() != 0;
 	}
 
+	/**
+	 * Returns the text in this field.
+	 * @return the text in this field
+	 */
+	public String getText() {
+		return textField.getText();
+	}
+
 	public AddressFactory getAddressFactory() {
 		return addrFactory;
 	}
@@ -174,12 +183,12 @@ public class AddressInput extends JPanel implements FocusableEditor {
 	};
 
 	/**
-	 * Address Space predicate which include all loaded memory spaces plus the 
-	 * {@link AddressSpace#OTHER_SPACE}.  See {@link AddressSpace#isLoadedMemorySpace()}.
+	 * Address Space predicate which includes all memory spaces, including the 
+	 * {@link AddressSpace#OTHER_SPACE} and all overlay spaces. 
 	 * Intended for use with {@link #setAddressFactory(AddressFactory, Predicate)}.
 	 */
-	public final static Predicate<AddressSpace> INCLUDE_OTHER_AND_LOADED_MEMORY_SPACES = (s) -> {
-		return s.isLoadedMemorySpace() || s.equals(AddressSpace.OTHER_SPACE);
+	public final static Predicate<AddressSpace> INCLUDE_ALL_MEMORY_SPACES = (s) -> {
+		return s.isMemorySpace();
 	};
 
 	/**

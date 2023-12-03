@@ -201,7 +201,8 @@ public class MachoProgramBuilder {
 				break;
 			}
 
-			if (segment.getFileSize() > 0 && (allowZeroAddr || segment.getVMaddress() != 0)) {
+			if (segment.getFileSize() > 0 && segment.getVMsize() > 0 &&
+				(allowZeroAddr || segment.getVMaddress() != 0)) {
 				if (createMemoryBlock(segment.getSegmentName(),
 					space.getAddress(segment.getVMaddress()), segment.getFileOffset(),
 					segment.getFileSize(), segment.getSegmentName(), source, segment.isRead(),
@@ -1195,10 +1196,10 @@ public class MachoProgramBuilder {
 			}
 
 			if (libraryPath != null) {
-				libraryPaths.add(libraryPath);
 				int index = libraryPath.lastIndexOf("/");
 				String libraryName = index != -1 ? libraryPath.substring(index + 1) : libraryPath;
 				if (!libraryName.equals(program.getName())) {
+					libraryPaths.add(libraryPath);
 					addLibrary(libraryPath);
 					props.setString(
 						ExternalSymbolResolver.getRequiredLibraryProperty(libraryIndex++),

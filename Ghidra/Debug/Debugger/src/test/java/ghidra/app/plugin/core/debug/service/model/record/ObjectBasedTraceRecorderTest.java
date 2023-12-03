@@ -25,8 +25,8 @@ import java.util.*;
 import org.junit.Test;
 
 import generic.Unique;
-import ghidra.app.plugin.core.debug.gui.AbstractGhidraHeadedDebuggerGUITest;
-import ghidra.app.plugin.core.debug.mapping.*;
+import ghidra.app.plugin.core.debug.gui.AbstractGhidraHeadedDebuggerTest;
+import ghidra.app.plugin.core.debug.mapping.ObjectBasedDebuggerMappingOpinion;
 import ghidra.dbg.error.DebuggerMemoryAccessException;
 import ghidra.dbg.model.*;
 import ghidra.dbg.target.*;
@@ -49,7 +49,7 @@ import ghidra.trace.model.time.TraceSnapshot;
 import ghidra.trace.model.time.TraceTimeManager;
 import ghidra.util.task.TaskMonitor;
 
-public class ObjectBasedTraceRecorderTest extends AbstractGhidraHeadedDebuggerGUITest {
+public class ObjectBasedTraceRecorderTest extends AbstractGhidraHeadedDebuggerTest {
 	DebuggerMappingOpinion opinion = new ObjectBasedDebuggerMappingOpinion();
 	TraceRecorder recorder;
 
@@ -77,7 +77,7 @@ public class ObjectBasedTraceRecorderTest extends AbstractGhidraHeadedDebuggerGU
 
 	protected void dumpValues(TraceObject obj) {
 		System.err.println("Values of " + obj);
-		for (TraceObjectValue val : obj.getValues()) {
+		for (TraceObjectValue val : obj.getValues(Lifespan.ALL)) {
 			System.err.println("  " + val.getEntryKey() + " = " + val.getValue());
 		}
 	}
@@ -440,10 +440,10 @@ public class ObjectBasedTraceRecorderTest extends AbstractGhidraHeadedDebuggerGU
 		assertEquals(tb.range(0x00400123, 0x00400126), loc.getRange());
 		assertEquals(Set.of(TraceBreakpointKind.SW_EXECUTE), loc.getKinds());
 
-		assertEquals(List.of(),
-			recorder.collectBreakpointContainers(mb.testThread1));
-		assertEquals(List.of(mb.testProcess1.breaks, mb.testProcess3.breaks),
-			recorder.collectBreakpointContainers(null));
+		assertEquals(Set.of(),
+			Set.copyOf(recorder.collectBreakpointContainers(mb.testThread1)));
+		assertEquals(Set.of(mb.testProcess1.breaks, mb.testProcess3.breaks),
+			Set.copyOf(recorder.collectBreakpointContainers(null)));
 
 		TargetBreakpointLocation targetLoc = recorder.getTargetBreakpoint(loc);
 		assertEquals(loc, recorder.getTraceBreakpoint(targetLoc));
@@ -453,7 +453,8 @@ public class ObjectBasedTraceRecorderTest extends AbstractGhidraHeadedDebuggerGU
 			Set.of(TargetBreakpointKind.SW_EXECUTE)));
 		flushAndWait();
 		assertEquals(2, breaks.getAllBreakpoints().size());
-		assertEquals(List.of(targetLoc), recorder.collectBreakpoints(mb.testThread1));
+		assertEquals(Set.of(targetLoc),
+			Set.copyOf(recorder.collectBreakpoints(mb.testThread1)));
 	}
 
 	@Test

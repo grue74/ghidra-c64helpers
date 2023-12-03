@@ -31,7 +31,7 @@ import db.Transaction;
 import docking.widgets.table.RowWrappedEnumeratedColumnTableModel;
 import generic.Unique;
 import generic.test.category.NightlyCategory;
-import ghidra.app.plugin.core.debug.gui.AbstractGhidraHeadedDebuggerGUITest;
+import ghidra.app.plugin.core.debug.gui.AbstractGhidraHeadedDebuggerTest;
 import ghidra.app.plugin.core.debug.gui.DebuggerResources.*;
 import ghidra.app.plugin.core.debug.gui.breakpoint.DebuggerBreakpointsProvider.LogicalBreakpointTableModel;
 import ghidra.app.plugin.core.debug.gui.console.DebuggerConsolePlugin;
@@ -41,12 +41,12 @@ import ghidra.app.plugin.core.debug.service.modules.DebuggerStaticMappingUtils;
 import ghidra.app.services.*;
 import ghidra.dbg.model.TestTargetProcess;
 import ghidra.dbg.target.TargetBreakpointSpec.TargetBreakpointKind;
+import ghidra.dbg.target.TargetBreakpointSpecContainer;
 import ghidra.debug.api.action.ActionSource;
 import ghidra.debug.api.breakpoint.LogicalBreakpoint;
 import ghidra.debug.api.breakpoint.LogicalBreakpoint.State;
 import ghidra.debug.api.control.ControlMode;
 import ghidra.debug.api.model.TraceRecorder;
-import ghidra.dbg.target.TargetBreakpointSpecContainer;
 import ghidra.framework.store.LockException;
 import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressOverflowException;
@@ -58,11 +58,10 @@ import ghidra.trace.model.breakpoint.TraceBreakpoint;
 import ghidra.trace.model.time.TraceSnapshot;
 import ghidra.util.SystemUtilities;
 import ghidra.util.exception.CancelledException;
-import ghidra.util.exception.DuplicateNameException;
 import ghidra.util.task.TaskMonitor;
 
 @Category(NightlyCategory.class) // this may actually be an @PortSensitive test
-public class DebuggerBreakpointsProviderTest extends AbstractGhidraHeadedDebuggerGUITest {
+public class DebuggerBreakpointsProviderTest extends AbstractGhidraHeadedDebuggerTest {
 	protected static final long TIMEOUT_MILLIS =
 		SystemUtilities.isInTestingBatchMode() ? 5000 : Long.MAX_VALUE;
 
@@ -99,8 +98,8 @@ public class DebuggerBreakpointsProviderTest extends AbstractGhidraHeadedDebugge
 				.get(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 	}
 
-	protected void addStaticMemoryAndBreakpoint() throws LockException, DuplicateNameException,
-			MemoryConflictException, AddressOverflowException, CancelledException {
+	protected void addStaticMemoryAndBreakpoint() throws LockException, MemoryConflictException,
+			AddressOverflowException, CancelledException {
 		try (Transaction tx = program.openTransaction("Add bookmark break")) {
 			program.getMemory()
 					.createInitializedBlock(".text", addr(program, 0x00400000), 0x1000, (byte) 0,
@@ -703,7 +702,7 @@ public class DebuggerBreakpointsProviderTest extends AbstractGhidraHeadedDebugge
 		createTrace(program.getLanguageID().getIdAsString());
 		try (Transaction startTransaction = tb.startTransaction()) {
 			TraceSnapshot initial = tb.trace.getTimeManager().getSnapshot(0, true);
-			ProgramEmulationUtils.loadExecutable(initial, program);
+			ProgramEmulationUtils.loadExecutable(initial, program, List.of());
 			Address pc = program.getMinAddress();
 			ProgramEmulationUtils.doLaunchEmulationThread(tb.trace, 0, program, pc, pc);
 		}
