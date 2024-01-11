@@ -36,7 +36,8 @@ import ghidra.program.model.listing.*;
 import ghidra.program.model.mem.*;
 import ghidra.program.model.symbol.*;
 import ghidra.program.model.util.*;
-import ghidra.program.util.ChangeManager;
+import ghidra.program.util.CommentChangeRecord;
+import ghidra.program.util.ProgramEvent;
 import ghidra.util.*;
 import ghidra.util.exception.*;
 import ghidra.util.task.TaskMonitor;
@@ -570,8 +571,8 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 						}
 					}
 					set.addRange(block.getStartAddress(), maxAddr);
-					program.setChanged(ChangeManager.DOCR_CODE_ADDED, block.getStartAddress(),
-						maxAddr, null, null);
+					program.setChanged(ProgramEvent.CODE_ADDED, block.getStartAddress(), maxAddr,
+						null, null);
 				}
 			}
 
@@ -626,7 +627,7 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 			}
 
 			// fire event
-			program.setChanged(ChangeManager.DOCR_CODE_ADDED, address, endAddr, null, inst);
+			program.setChanged(ProgramEvent.CODE_ADDED, address, endAddr, null, inst);
 
 			return inst;
 		}
@@ -2047,11 +2048,11 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 			if (dataType instanceof Composite || dataType instanceof Array ||
 				dataType instanceof Dynamic) {
 				compositeMgr.add(addr);
-				program.setChanged(ChangeManager.DOCR_COMPOSITE_ADDED, addr, endAddr, null, null);
+				program.setChanged(ProgramEvent.COMPOSITE_ADDED, addr, endAddr, null, null);
 			}
 
 			// fire event
-			program.setChanged(ChangeManager.DOCR_CODE_ADDED, addr, endAddr, null, data);
+			program.setChanged(ProgramEvent.CODE_ADDED, addr, endAddr, null, data);
 
 			addDataReferences(data, new ArrayList<Address>());
 
@@ -2094,13 +2095,8 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 	 * data.
 	 */
 	private void addDataReferences(Data data, List<Address> longSegmentAddressList) {
-		Memory mem = program.getMemory();
-		MemoryBlock block = mem.getBlock(data.getAddress());
-		if (block == null || !block.isInitialized()) {
-			return;
-		}
 		DataType dt = data.getDataType();
-		if (Address.class.equals(dt.getValueClass(null))) {
+		if (Address.class.equals(dt.getValueClass(data))) {
 			Object obj = data.getValue();
 			if (obj instanceof Address) {
 				// creates a reference unless the value is 0 or all f's
@@ -2217,7 +2213,7 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 				boolean commentRemoved = commentAdapter.deleteRecords(start, end);
 				if (commentRemoved) {
 					// fire event
-					program.setChanged(ChangeManager.DOCR_CODE_REMOVED, start, end, null, null);
+					program.setChanged(ProgramEvent.CODE_REMOVED, start, end, null, null);
 				}
 			}
 			catch (IOException e) {
@@ -2327,7 +2323,7 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 				}
 			}
 
-			program.setChanged(ChangeManager.DOCR_CODE_REMOVED, start, end, cu, null);
+			program.setChanged(ProgramEvent.CODE_REMOVED, start, end, cu, null);
 		}
 		finally {
 			lock.release();
@@ -3324,28 +3320,8 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 	}
 
 	void sendNotification(Address address, int commentType, String oldValue, String newValue) {
-		int eventType;
-		switch (commentType) {
-			case CodeUnit.PLATE_COMMENT:
-				eventType = ChangeManager.DOCR_PLATE_COMMENT_CHANGED;
-				break;
-			case CodeUnit.PRE_COMMENT:
-				eventType = ChangeManager.DOCR_PRE_COMMENT_CHANGED;
-				break;
-			case CodeUnit.POST_COMMENT:
-				eventType = ChangeManager.DOCR_POST_COMMENT_CHANGED;
-				break;
-			case CodeUnit.REPEATABLE_COMMENT:
-				eventType = ChangeManager.DOCR_REPEATABLE_COMMENT_CHANGED;
-				break;
-			case CodeUnit.EOL_COMMENT:
-			default:
-				eventType = ChangeManager.DOCR_EOL_COMMENT_CHANGED;
-		}
 		createCommentHistoryRecord(address, commentType, oldValue, newValue);
-
-		program.setChanged(eventType, address, address, oldValue, newValue);
-
+		program.setChanged(new CommentChangeRecord(commentType, address, oldValue, newValue));
 	}
 
 	void createCommentHistoryRecord(Address address, int commentType, String oldComment,
@@ -3469,7 +3445,7 @@ public class CodeManager implements ErrorHandler, ManagerDB {
 					rec.setLongValue(DataDBAdapter.DATA_TYPE_ID_COL, newDataTypeID);
 					dataAdapter.putRecord(rec);
 					Address addr = addrMap.decodeAddress(rec.getKey());
-					program.setChanged(ChangeManager.DOCR_CODE_REPLACED, addr, addr, null, null);
+					program.setChanged(ProgramEvent.CODE_REPLACED, addr, addr, null, null);
 				}
 			}
 		}
