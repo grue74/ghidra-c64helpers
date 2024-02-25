@@ -22,28 +22,30 @@ import javax.swing.Icon;
 
 import docking.widgets.tree.GTreeLazyNode;
 import docking.widgets.tree.GTreeNode;
+import generic.theme.GIcon;
 import ghidra.app.plugin.core.debug.gui.DebuggerResources;
 import ghidra.dbg.target.*;
 import ghidra.dbg.util.PathUtils.TargetObjectKeyComparator;
 import ghidra.framework.model.*;
 import ghidra.trace.model.*;
-import ghidra.trace.model.Trace.TraceObjectChangeType;
 import ghidra.trace.model.target.*;
+import ghidra.trace.util.TraceEvents;
 import ghidra.util.HTMLUtilities;
 import ghidra.util.LockHold;
 import ghidra.util.datastruct.WeakValueHashMap;
 import utilities.util.IDKeyed;
 
 public class ObjectTreeModel implements DisplaysModified {
+	public static final GIcon ICON_PENDING = new GIcon("icon.pending");
 
 	class ListenerForChanges extends TraceDomainObjectListener
 			implements DomainObjectClosedListener {
 		public ListenerForChanges() {
 			listenForUntyped(DomainObjectEvent.RESTORED, this::domainObjectRestored);
-			listenFor(TraceObjectChangeType.CREATED, this::objectCreated);
-			listenFor(TraceObjectChangeType.VALUE_CREATED, this::valueCreated);
-			listenFor(TraceObjectChangeType.VALUE_DELETED, this::valueDeleted);
-			listenFor(TraceObjectChangeType.VALUE_LIFESPAN_CHANGED, this::valueLifespanChanged);
+			listenFor(TraceEvents.OBJECT_CREATED, this::objectCreated);
+			listenFor(TraceEvents.VALUE_CREATED, this::valueCreated);
+			listenFor(TraceEvents.VALUE_DELETED, this::valueDeleted);
+			listenFor(TraceEvents.VALUE_LIFESPAN_CHANGED, this::valueLifespanChanged);
 		}
 
 		@Override
@@ -193,6 +195,38 @@ public class ObjectTreeModel implements DisplaysModified {
 		}
 	}
 
+	public static class PendingNode extends GTreeLazyNode {
+		@Override
+		public String getName() {
+			return ""; // Want it sorted to the front
+		}
+
+		@Override
+		public String getDisplayText() {
+			return "Refreshing...";
+		}
+
+		@Override
+		public Icon getIcon(boolean expanded) {
+			return ICON_PENDING;
+		}
+
+		@Override
+		public boolean isLeaf() {
+			return true;
+		}
+
+		@Override
+		protected List<GTreeNode> generateChildren() {
+			return List.of();
+		}
+
+		@Override
+		public String getToolTip() {
+			return null;
+		}
+	}
+
 	public abstract class AbstractNode extends GTreeLazyNode {
 		public abstract TraceObjectValue getValue();
 
@@ -210,7 +244,7 @@ public class ObjectTreeModel implements DisplaysModified {
 			/**
 			 * Our nodes are re-usable. They're cached so that as an item comes and goes, its
 			 * corresponding node can also come and go without being re-instantiated each time.
-			 * Furthermore, it's like to have all the same children as before, too. For now, we'll
+			 * Furthermore, it's likely to have all the same children as before, too. For now, we'll
 			 * just ignore dispose. If there's too many unexpected behaviors resulting from this,
 			 * then perhaps we should just have dispose also remove itself from the node cache.
 			 */
@@ -219,12 +253,25 @@ public class ObjectTreeModel implements DisplaysModified {
 
 		@Override
 		public int compareTo(GTreeNode node) {
-			return TargetObjectKeyComparator.CHILD.compare(this.getName(), node.getName());
+			if (!(node instanceof AbstractNode that)) {
+				return -1;
+			}
+			int c;
+			c = TargetObjectKeyComparator.CHILD.compare(this.getValue().getEntryKey(),
+				that.getValue().getEntryKey());
+			if (c != 0) {
+				return c;
+			}
+			c = Lifespan.DOMAIN.compare(this.getValue().getMinSnap(), that.getValue().getMinSnap());
+			if (c != 0) {
+				return c;
+			}
+			return 0;
 		}
 
 		@Override
 		public String getName() {
-			return getValue().getEntryKey() + "@" + getValue().getMinSnap();
+			return getValue().getEntryKey() + "@" + System.identityHashCode(getValue());
 		}
 
 		@Override
@@ -319,7 +366,7 @@ public class ObjectTreeModel implements DisplaysModified {
 		}
 	}
 
-	class RootNode extends AbstractNode {
+	public class RootNode extends AbstractNode {
 		@Override
 		public TraceObjectValue getValue() {
 			if (trace == null) {
@@ -340,14 +387,14 @@ public class ObjectTreeModel implements DisplaysModified {
 		@Override
 		public String getDisplayText() {
 			if (trace == null) {
-				return "<html><em>No trace is active</em>";
+				return "<html><em>No&nbsp;trace&nbsp;is&nbsp;active</em>";
 			}
 			TraceObject root = trace.getObjectManager().getRootObject();
 			if (root == null) {
-				return "<html><em>Trace has no model</em>";
+				return "<html><em>Trace&nbsp;has&nbsp;no&nbsp;model</em>";
 			}
-			return "<html>" +
-				HTMLUtilities.escapeHTML(display.getObjectDisplay(root.getCanonicalParent(0)));
+			return "<html>" + HTMLUtilities
+					.escapeHTML(display.getObjectDisplay(root.getCanonicalParent(0)), true);
 		}
 
 		@Override
@@ -424,7 +471,8 @@ public class ObjectTreeModel implements DisplaysModified {
 		@Override
 		public String getDisplayText() {
 			String html = HTMLUtilities.escapeHTML(
-				value.getEntryKey() + ": " + display.getPrimitiveValueDisplay(value.getValue()));
+				value.getEntryKey() + ": " + display.getPrimitiveValueDisplay(value.getValue()),
+				true);
 			return "<html>" + html;
 		}
 
@@ -471,8 +519,8 @@ public class ObjectTreeModel implements DisplaysModified {
 
 		@Override
 		public String getDisplayText() {
-			return "<html>" + HTMLUtilities.escapeHTML(value.getEntryKey()) + ": <em>" +
-				HTMLUtilities.escapeHTML(display.getObjectLinkDisplay(value)) + "</em>";
+			return "<html>" + HTMLUtilities.escapeHTML(value.getEntryKey(), true) + ":&nbsp;<em>" +
+				HTMLUtilities.escapeHTML(display.getObjectLinkDisplay(value), true) + "</em>";
 		}
 
 		@Override
@@ -513,7 +561,7 @@ public class ObjectTreeModel implements DisplaysModified {
 
 		@Override
 		public String getDisplayText() {
-			return "<html>" + HTMLUtilities.escapeHTML(display.getObjectDisplay(value));
+			return "<html>" + HTMLUtilities.escapeHTML(display.getObjectDisplay(value), true);
 		}
 
 		@Override

@@ -21,7 +21,6 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import javax.swing.*;
 import javax.swing.table.TableColumn;
@@ -42,9 +41,9 @@ import ghidra.program.model.address.Address;
 import ghidra.program.model.address.AddressSet;
 import ghidra.program.util.ProgramSelection;
 import ghidra.trace.model.*;
-import ghidra.trace.model.Trace.TraceMemoryRegionChangeType;
 import ghidra.trace.model.memory.TraceMemoryManager;
 import ghidra.trace.model.memory.TraceMemoryRegion;
+import ghidra.trace.util.TraceEvents;
 import ghidra.util.database.ObjectKey;
 import ghidra.util.table.GhidraTable;
 import ghidra.util.table.GhidraTableFilterPanel;
@@ -116,37 +115,21 @@ public class DebuggerLegacyRegionsPanel extends JPanel {
 		}
 	}
 
-	protected static RegionRow getSelectedRegionRow(ActionContext context) {
-		if (!(context instanceof DebuggerRegionActionContext)) {
-			return null;
-		}
-		DebuggerRegionActionContext ctx = (DebuggerRegionActionContext) context;
-		Set<RegionRow> regions = ctx.getSelectedRegions();
-		if (regions.size() != 1) {
-			return null;
-		}
-		return regions.iterator().next();
-	}
-
 	protected static Set<TraceMemoryRegion> getSelectedRegions(ActionContext context) {
-		if (!(context instanceof DebuggerRegionActionContext)) {
+		if (!(context instanceof DebuggerRegionActionContext ctx)) {
 			return null;
 		}
-		DebuggerRegionActionContext ctx = (DebuggerRegionActionContext) context;
-		return ctx.getSelectedRegions()
-				.stream()
-				.map(r -> r.getRegion())
-				.collect(Collectors.toSet());
+		return ctx.getSelectedRegions();
 	}
 
 	private class RegionsListener extends TraceDomainObjectListener {
 		public RegionsListener() {
 			listenForUntyped(DomainObjectEvent.RESTORED, e -> objectRestored());
 
-			listenFor(TraceMemoryRegionChangeType.ADDED, this::regionAdded);
-			listenFor(TraceMemoryRegionChangeType.CHANGED, this::regionChanged);
-			listenFor(TraceMemoryRegionChangeType.LIFESPAN_CHANGED, this::regionChanged);
-			listenFor(TraceMemoryRegionChangeType.DELETED, this::regionDeleted);
+			listenFor(TraceEvents.REGION_ADDED, this::regionAdded);
+			listenFor(TraceEvents.REGION_CHANGED, this::regionChanged);
+			listenFor(TraceEvents.REGION_LIFESPAN_CHANGED, this::regionChanged);
+			listenFor(TraceEvents.REGION_DELETED, this::regionDeleted);
 		}
 
 		private void objectRestored() {
@@ -277,16 +260,6 @@ public class DebuggerLegacyRegionsPanel extends JPanel {
 
 	boolean isContextNonEmpty(DebuggerRegionActionContext ctx) {
 		return !ctx.getSelectedRegions().isEmpty();
-	}
-
-	private static Set<TraceMemoryRegion> getSelectedRegions(DebuggerRegionActionContext ctx) {
-		if (ctx == null) {
-			return null;
-		}
-		return ctx.getSelectedRegions()
-				.stream()
-				.map(r -> r.getRegion())
-				.collect(Collectors.toSet());
 	}
 
 	protected void navigateToSelectedRegion() {

@@ -52,8 +52,6 @@ import ghidra.framework.plugintool.annotation.AutoServiceConsumed;
 import ghidra.framework.plugintool.util.PluginStatus;
 import ghidra.lifecycle.Internal;
 import ghidra.trace.model.*;
-import ghidra.trace.model.Trace.TraceObjectChangeType;
-import ghidra.trace.model.Trace.TraceThreadChangeType;
 import ghidra.trace.model.guest.TracePlatform;
 import ghidra.trace.model.program.TraceProgramView;
 import ghidra.trace.model.program.TraceVariableSnapProgramView;
@@ -62,6 +60,7 @@ import ghidra.trace.model.target.TraceObjectKeyPath;
 import ghidra.trace.model.thread.TraceThread;
 import ghidra.trace.model.time.TraceSnapshot;
 import ghidra.trace.model.time.schedule.TraceSchedule;
+import ghidra.trace.util.TraceEvents;
 import ghidra.util.*;
 import ghidra.util.database.DomainObjectLockHold;
 import ghidra.util.exception.*;
@@ -107,9 +106,9 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 
 		public ListenerForTraceChanges(Trace trace) {
 			this.trace = trace;
-			listenFor(TraceThreadChangeType.ADDED, this::threadAdded);
-			listenFor(TraceThreadChangeType.DELETED, this::threadDeleted);
-			listenFor(TraceObjectChangeType.CREATED, this::objectCreated);
+			listenFor(TraceEvents.THREAD_ADDED, this::threadAdded);
+			listenFor(TraceEvents.THREAD_DELETED, this::threadDeleted);
+			listenFor(TraceEvents.OBJECT_CREATED, this::objectCreated);
 		}
 
 		private void threadAdded(TraceThread thread) {
@@ -254,7 +253,7 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 			}
 			DebuggerCoordinates coords = current;
 			TraceObjectKeyPath focus = curTarget.getFocus();
-			if (focus != null && synchronizeActive.get()) {
+			if (focus != null) {
 				coords = coords.path(focus);
 			}
 			coords = coords.snap(curTarget.getSnap());
@@ -274,8 +273,6 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 	protected TargetObject curObj;
 	@AutoConfigStateField(codec = BooleanAsyncConfigFieldCodec.class)
 	protected final AsyncReference<Boolean, Void> saveTracesByDefault = new AsyncReference<>(true);
-	@AutoConfigStateField(codec = BooleanAsyncConfigFieldCodec.class)
-	protected final AsyncReference<Boolean, Void> synchronizeActive = new AsyncReference<>(true);
 	@AutoConfigStateField(codec = BooleanAsyncConfigFieldCodec.class)
 	protected final AsyncReference<Boolean, Void> autoCloseOnTerminate = new AsyncReference<>(true);
 
@@ -545,7 +542,21 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 		return coordinates.platform(platform);
 	}
 
-	protected DebuggerCoordinates doSetCurrent(DebuggerCoordinates newCurrent,
+	protected boolean doSetCurrent(DebuggerCoordinates newCurrent) {
+		synchronized (listenersByTrace) {
+			if (current.equals(newCurrent)) {
+				return false;
+			}
+			current = newCurrent;
+			if (newCurrent.getTrace() != null) {
+				lastCoordsByTrace.put(newCurrent.getTrace(), newCurrent);
+			}
+		}
+		contextChanged();
+		return true;
+	}
+
+	protected DebuggerCoordinates fixAndSetCurrent(DebuggerCoordinates newCurrent,
 			ActivationCause cause) {
 		newCurrent = newCurrent == null ? DebuggerCoordinates.NOWHERE : newCurrent;
 		newCurrent = fillInTarget(newCurrent.getTrace(), newCurrent);
@@ -556,16 +567,10 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 				newCurrent = newCurrent.snap(target.getSnap());
 			}
 		}
-		synchronized (listenersByTrace) {
-			if (current.equals(newCurrent)) {
-				return null;
-			}
-			current = newCurrent;
-			if (newCurrent.getTrace() != null) {
-				lastCoordsByTrace.put(newCurrent.getTrace(), newCurrent);
-			}
+		newCurrent = validateCoordiantes(newCurrent, cause);
+		if (newCurrent == null || !doSetCurrent(newCurrent)) {
+			return null;
 		}
-		contextChanged();
 		return newCurrent;
 	}
 
@@ -577,10 +582,21 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 		tool.contextChanged(null);
 	}
 
+	private ControlMode getEffectiveControlMode(Trace trace) {
+		if (trace == null) {
+			return ControlMode.RO_TRACE;
+		}
+		return controlService == null ? ControlMode.DEFAULT : controlService.getCurrentMode(trace);
+	}
+
+	private DebuggerCoordinates validateCoordiantes(DebuggerCoordinates coordinates,
+			ActivationCause cause) {
+		ControlMode mode = getEffectiveControlMode(coordinates.getTrace());
+		return mode.validateCoordinates(tool, coordinates, cause);
+	}
+
 	private boolean isFollowsPresent(Trace trace) {
-		ControlMode mode = controlService == null
-				? ControlMode.DEFAULT
-				: controlService.getCurrentMode(trace);
+		ControlMode mode = getEffectiveControlMode(trace);
 		return mode.followsPresent();
 	}
 
@@ -622,9 +638,6 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 			return;
 		}
 		DebuggerCoordinates toActivate = current.target(target);
-		if (isFollowsPresent(current.getTrace())) {
-			toActivate = toActivate.snap(target.getSnap());
-		}
 		activate(toActivate, ActivationCause.FOLLOW_PRESENT);
 	}
 
@@ -632,7 +645,7 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 	public void processEvent(PluginEvent event) {
 		super.processEvent(event);
 		if (event instanceof TraceActivatedPluginEvent ev) {
-			doSetCurrent(ev.getActiveCoordinates(), ev.getCause());
+			fixAndSetCurrent(ev.getActiveCoordinates(), ev.getCause());
 		}
 		else if (event instanceof TraceClosedPluginEvent ev) {
 			doTraceClosed(ev.getTrace());
@@ -1037,19 +1050,12 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 			}
 		}
 
-		if (!synchronizeActive.get() && cause == ActivationCause.SYNC_MODEL) {
-			return AsyncUtils.nil();
-		}
 		if (cause == ActivationCause.FOLLOW_PRESENT) {
 			if (!isFollowsPresent(newTrace)) {
 				return AsyncUtils.nil();
 			}
 			if (current.getTrace() != newTrace) {
-				/**
-				 * The snap needs to match upon re-activating this trace, lest it look like the user
-				 * intentionally navigated to the past. That may cause the control mode to switch
-				 * off of "Target."
-				 */
+				// The snap needs to match upon re-activating this trace.
 				try {
 					newTrace.getProgramView().setSnap(coordinates.getViewSnap());
 				}
@@ -1065,13 +1071,18 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 		DebuggerCoordinates resolved;
 
 		prev = current;
-		resolved = doSetCurrent(coordinates, cause);
+		resolved = fixAndSetCurrent(coordinates, cause);
 		if (resolved == null) {
 			return AsyncUtils.nil();
 		}
-		CompletableFuture<Void> future = prepareViewAndFireEvent(resolved, cause);
+		CompletableFuture<Void> future =
+			prepareViewAndFireEvent(resolved, cause).exceptionally(ex -> {
+				// Emulation service will already display error
+				doSetCurrent(prev);
+				return null;
+			});
 
-		if (!synchronizeActive.get() || cause != ActivationCause.USER) {
+		if (cause != ActivationCause.USER) {
 			return future;
 		}
 		Target target = resolved.getTarget();
@@ -1139,27 +1150,6 @@ public class DebuggerTraceManagerServicePlugin extends Plugin
 	@Override
 	public DebuggerCoordinates resolveObject(TraceObject object) {
 		return current.object(object);
-	}
-
-	@Override
-	public void setSynchronizeActive(boolean enabled) {
-		synchronizeActive.set(enabled, null);
-		// TODO: Which action to take here, if any?
-	}
-
-	@Override
-	public boolean isSynchronizeActive() {
-		return synchronizeActive.get();
-	}
-
-	@Override
-	public void addSynchronizeActiveChangeListener(BooleanChangeAdapter listener) {
-		synchronizeActive.addChangeListener(listener);
-	}
-
-	@Override
-	public void removeSynchronizeActiveChangeListener(BooleanChangeAdapter listener) {
-		synchronizeActive.removeChangeListener(listener);
 	}
 
 	@Override

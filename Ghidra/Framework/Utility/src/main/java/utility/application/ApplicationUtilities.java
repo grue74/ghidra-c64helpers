@@ -167,20 +167,13 @@ public class ApplicationUtilities {
 	public static File getDefaultUserTempDir(String applicationName)
 			throws FileNotFoundException, IOException {
 
-		String appName = applicationName.toLowerCase();
+		String appName = normalizeApplicationName(applicationName);
 
 		// Look for Ghidra-specific system property
 		File tempOverrideDir = getSystemPropertyFile(PROPERTY_TEMP_DIR, false);
 		if (tempOverrideDir != null) {
 			return createDir(
 				new File(tempOverrideDir, getUserSpecificDirName(tempOverrideDir, appName)));
-		}
-
-		// Look for XDG environment variable
-		File xdgRuntimeDir = getEnvFile(XdgUtils.XDG_RUNTIME_DIR, false);
-		if (xdgRuntimeDir != null) {
-			return createDir(
-				new File(xdgRuntimeDir, getUserSpecificDirName(xdgRuntimeDir, appName)));
 		}
 
 		File javaTmpDir = getJavaTmpDir();
@@ -202,7 +195,7 @@ public class ApplicationUtilities {
 	public static File getDefaultUserCacheDir(ApplicationProperties applicationProperties)
 			throws FileNotFoundException, IOException {
 
-		String appName = applicationProperties.getApplicationName().toLowerCase();
+		String appName = normalizeApplicationName(applicationProperties.getApplicationName());
 
 		// Look for Ghidra-specific system property
 		File cacheOverrideDir = getSystemPropertyFile(PROPERTY_CACHE_DIR, false);
@@ -225,6 +218,7 @@ public class ApplicationUtilities {
 			return createDir(switch (OperatingSystem.CURRENT_OPERATING_SYSTEM) {
 				case WINDOWS -> new File(getEnvFile("LOCALAPPDATA", true), appName);
 				case LINUX -> new File("/var/tmp/" + userDirName);
+				case FREE_BSD -> new File("/var/tmp/" + userDirName);
 				case MAC_OS_X -> new File("/var/tmp/" + userDirName);
 				default -> throw new FileNotFoundException(
 					"Failed to find the user cache directory: Unsupported operating system.");
@@ -252,9 +246,9 @@ public class ApplicationUtilities {
 	public static File getDefaultUserSettingsDir(ApplicationProperties applicationProperties,
 			ResourceFile installationDirectory) throws FileNotFoundException, IOException {
 
-		String appName = applicationProperties.getApplicationName().toLowerCase();
 		ApplicationIdentifier applicationIdentifier =
 			new ApplicationIdentifier(applicationProperties);
+		String appName = applicationIdentifier.getApplicationName();
 		String versionedName = applicationIdentifier.toString();
 		if (SystemUtilities.isInDevelopmentMode()) {
 			// Add the application's installation directory name to this variable, so that each 
@@ -281,6 +275,7 @@ public class ApplicationUtilities {
 		return createDir(switch (OperatingSystem.CURRENT_OPERATING_SYSTEM) {
 			case WINDOWS -> new File(getEnvFile("APPDATA", true), versionedSubdir);
 			case LINUX -> new File(userHomeDir, ".config/" + versionedSubdir);
+			case FREE_BSD -> new File(userHomeDir, ".config/" + versionedSubdir);
 			case MAC_OS_X -> new File(userHomeDir, "Library/" + versionedSubdir);
 			default -> throw new FileNotFoundException(
 				"Failed to find the user settings directory: Unsupported operating system.");
@@ -317,6 +312,16 @@ public class ApplicationUtilities {
 		}
 
 		return new File(userSettingsParentDir, userSettingsDirName);
+	}
+
+	/**
+	 * Normalizes the application name by removing spaces and converting to lower case
+	 * 
+	 * @param applicationName The application name
+	 * @return The normalized application name
+	 */
+	public static String normalizeApplicationName(String applicationName) {
+		return applicationName.replaceAll("\\s", "").toLowerCase();
 	}
 
 	/**

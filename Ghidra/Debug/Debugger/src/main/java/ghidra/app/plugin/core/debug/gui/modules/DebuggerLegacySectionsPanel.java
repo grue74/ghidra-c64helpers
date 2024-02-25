@@ -37,10 +37,9 @@ import ghidra.framework.model.DomainObjectEvent;
 import ghidra.framework.plugintool.PluginTool;
 import ghidra.program.model.address.*;
 import ghidra.trace.model.Trace;
-import ghidra.trace.model.Trace.TraceModuleChangeType;
-import ghidra.trace.model.Trace.TraceSectionChangeType;
 import ghidra.trace.model.TraceDomainObjectListener;
 import ghidra.trace.model.modules.*;
+import ghidra.trace.util.TraceEvents;
 import ghidra.util.database.ObjectKey;
 import ghidra.util.table.GhidraTable;
 import ghidra.util.table.GhidraTableFilterPanel;
@@ -49,24 +48,21 @@ public class DebuggerLegacySectionsPanel extends JPanel {
 
 	protected static Set<TraceModule> getSelectedModulesFromContext(
 			DebuggerSectionActionContext context) {
-		return context.getSelectedSections()
+		return context.getSelectedSections(false)
 				.stream()
 				.map(r -> r.getModule())
 				.collect(Collectors.toSet());
 	}
 
 	protected static Set<TraceSection> getSelectedSectionsFromContext(
-			DebuggerSectionActionContext context) {
-		return context.getSelectedSections()
-				.stream()
-				.map(r -> r.getSection())
-				.collect(Collectors.toSet());
+			DebuggerSectionActionContext context, boolean allowExpansion) {
+		return context.getSelectedSections(allowExpansion);
 	}
 
 	protected static AddressSetView getSelectedAddressesFromContext(
 			DebuggerSectionActionContext context) {
 		AddressSet sel = new AddressSet();
-		for (TraceSection section : getSelectedSectionsFromContext(context)) {
+		for (TraceSection section : getSelectedSectionsFromContext(context, false)) {
 			sel.add(section.getRange());
 		}
 		return sel;
@@ -146,13 +142,13 @@ public class DebuggerLegacySectionsPanel extends JPanel {
 			 * NOTE: No need for Module.ADDED here. A TraceModule is created empty, so when each
 			 * section is added, we'll get the call.
 			 */
-			listenFor(TraceModuleChangeType.CHANGED, this::moduleChanged);
-			listenFor(TraceModuleChangeType.LIFESPAN_CHANGED, this::moduleChanged);
-			listenFor(TraceModuleChangeType.DELETED, this::moduleDeleted);
+			listenFor(TraceEvents.MODULE_CHANGED, this::moduleChanged);
+			listenFor(TraceEvents.MODULE_LIFESPAN_CHANGED, this::moduleChanged);
+			listenFor(TraceEvents.MODULE_DELETED, this::moduleDeleted);
 
-			listenFor(TraceSectionChangeType.ADDED, this::sectionAdded);
-			listenFor(TraceSectionChangeType.CHANGED, this::sectionChanged);
-			listenFor(TraceSectionChangeType.DELETED, this::sectionDeleted);
+			listenFor(TraceEvents.SECTION_ADDED, this::sectionAdded);
+			listenFor(TraceEvents.SECTION_CHANGED, this::sectionChanged);
+			listenFor(TraceEvents.SECTION_DELETED, this::sectionDeleted);
 		}
 
 		private void objectRestored() {

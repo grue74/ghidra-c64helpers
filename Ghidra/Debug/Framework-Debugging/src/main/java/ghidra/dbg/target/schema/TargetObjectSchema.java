@@ -1164,7 +1164,7 @@ public interface TargetObjectSchema {
 	 * {@link TargetStackFrame}, and the frame level (index) must precede it.
 	 * 
 	 * @param frameLevel the frame level. May be ignored if not applicable
-	 * @path the path of the seed object relative to the root
+	 * @param path the path of the seed object relative to the root
 	 * @return the predicates where the register container should be found, possibly empty
 	 */
 	default PathPredicates searchForRegisterContainer(int frameLevel, List<String> path) {
@@ -1232,5 +1232,21 @@ public interface TargetObjectSchema {
 			}
 		}
 		throw new IllegalArgumentException("No index between stack and frame");
+	}
+
+	/**
+	 * Check if this schema can accept a value of the given other schema
+	 * 
+	 * <p>
+	 * This works analogously to {@link Class#isAssignableFrom(Class)}, except that schemas are
+	 * quite a bit less flexible. Only {@link EnumerableTargetObjectSchema#ANY} and
+	 * {@link EnumerableTargetObjectSchema#OBJECT} can accept anything other than exactly
+	 * themselves.
+	 * 
+	 * @param that
+	 * @return true if an object of that schema can be assigned to this schema.
+	 */
+	default boolean isAssignableFrom(TargetObjectSchema that) {
+		return this.equals(that);
 	}
 }

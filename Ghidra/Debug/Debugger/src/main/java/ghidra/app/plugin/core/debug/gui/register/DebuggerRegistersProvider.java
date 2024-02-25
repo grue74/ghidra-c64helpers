@@ -52,8 +52,8 @@ import ghidra.dbg.error.DebuggerModelAccessException;
 import ghidra.debug.api.target.Target;
 import ghidra.debug.api.tracemgr.DebuggerCoordinates;
 import ghidra.docking.settings.*;
-import ghidra.framework.model.DomainObjectEvent;
 import ghidra.framework.model.DomainObjectChangeRecord;
+import ghidra.framework.model.DomainObjectEvent;
 import ghidra.framework.options.AutoOptions;
 import ghidra.framework.options.SaveState;
 import ghidra.framework.plugintool.*;
@@ -64,15 +64,13 @@ import ghidra.program.model.lang.*;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.util.CodeUnitInsertionException;
 import ghidra.trace.model.*;
-import ghidra.trace.model.Trace.*;
 import ghidra.trace.model.guest.TracePlatform;
 import ghidra.trace.model.listing.*;
 import ghidra.trace.model.memory.*;
 import ghidra.trace.model.program.TraceProgramView;
 import ghidra.trace.model.target.TraceObject;
 import ghidra.trace.model.thread.TraceThread;
-import ghidra.trace.util.TraceAddressSpace;
-import ghidra.trace.util.TraceRegisterUtils;
+import ghidra.trace.util.*;
 import ghidra.util.HelpLocation;
 import ghidra.util.Msg;
 import ghidra.util.classfinder.ClassSearcher;
@@ -274,14 +272,14 @@ public class DebuggerRegistersProvider extends ComponentProviderAdapter
 	class TraceChangeListener extends TraceDomainObjectListener {
 		public TraceChangeListener() {
 			listenForUntyped(DomainObjectEvent.RESTORED, e -> objectRestored(e));
-			listenFor(TraceMemoryBytesChangeType.CHANGED, this::registerValueChanged);
-			listenFor(TraceMemoryStateChangeType.CHANGED, this::registerStateChanged);
-			listenFor(TraceCodeChangeType.ADDED, this::registerTypeAdded);
-			listenFor(TraceCodeChangeType.DATA_TYPE_REPLACED, this::registerTypeReplaced);
-			listenFor(TraceCodeChangeType.LIFESPAN_CHANGED, this::registerTypeLifespanChanged);
-			listenFor(TraceCodeChangeType.REMOVED, this::registerTypeRemoved);
-			listenFor(TraceThreadChangeType.DELETED, this::threadDeleted);
-			listenFor(TraceThreadChangeType.LIFESPAN_CHANGED, this::threadDestroyed);
+			listenFor(TraceEvents.BYTES_CHANGED, this::registerValueChanged);
+			listenFor(TraceEvents.BYTES_STATE_CHANGED, this::registerStateChanged);
+			listenFor(TraceEvents.CODE_ADDED, this::registerTypeAdded);
+			listenFor(TraceEvents.CODE_DATA_TYPE_REPLACED, this::registerTypeReplaced);
+			listenFor(TraceEvents.CODE_LIFESPAN_CHANGED, this::registerTypeLifespanChanged);
+			listenFor(TraceEvents.CODE_REMOVED, this::registerTypeRemoved);
+			listenFor(TraceEvents.THREAD_DELETED, this::threadDeleted);
+			listenFor(TraceEvents.THREAD_LIFESPAN_CHANGED, this::threadDestroyed);
 		}
 
 		private boolean isVisibleObjectsMode(AddressSpace space) {
@@ -481,6 +479,8 @@ public class DebuggerRegistersProvider extends ComponentProviderAdapter
 	private DebuggerListingService listingService;
 	@AutoServiceConsumed
 	private DebuggerControlService controlService;
+	@AutoServiceConsumed
+	private DebuggerConsoleService consoleService;
 	@AutoServiceConsumed
 	private MarkerService markerService; // TODO: Mark address types (separate plugin?)
 	@SuppressWarnings("unused")
@@ -849,15 +849,7 @@ public class DebuggerRegistersProvider extends ComponentProviderAdapter
 		CompletableFuture<Void> future = editor.setRegister(rv);
 		future.exceptionally(ex -> {
 			ex = AsyncUtils.unwrapThrowable(ex);
-			if (ex instanceof DebuggerModelAccessException) {
-				Msg.error(this, "Could not write target register", ex);
-				plugin.getTool()
-						.setStatusInfo("Could not write target register: " + ex.getMessage());
-			}
-			else {
-				Msg.showError(this, getComponent(), "Edit Register",
-					"Could not write target register", ex);
-			}
+			reportError("Edit Register", "Could not write target register", ex);
 			return null;
 		});
 		return;
@@ -1280,9 +1272,7 @@ public class DebuggerRegistersProvider extends ComponentProviderAdapter
 			current.getThread(), current.getFrame(), registers);
 		return future.exceptionally(ex -> {
 			ex = AsyncUtils.unwrapThrowable(ex);
-			String msg = "Could not read target registers for selected thread: " + ex.getMessage();
-			Msg.info(this, msg);
-			plugin.getTool().setStatusInfo(msg);
+			reportError(null, "Could not read target registers for selected thread", ex);
 			return ExceptionUtils.rethrow(ex);
 		}).thenApply(__ -> null);
 	}
@@ -1302,5 +1292,18 @@ public class DebuggerRegistersProvider extends ComponentProviderAdapter
 
 	public DebuggerCoordinates getCurrent() {
 		return current;
+	}
+
+	private void reportError(String title, String message, Throwable ex) {
+		plugin.getTool().setStatusInfo(message + ": " + ex.getMessage());
+		if (title != null && !(ex instanceof DebuggerModelAccessException)) {
+			Msg.showError(this, getComponent(), title, message, ex);
+		}
+		else if (consoleService != null) {
+			consoleService.log(DebuggerResources.ICON_LOG_ERROR, message, ex);
+		}
+		else {
+			Msg.error(this, message, ex);
+		}
 	}
 }

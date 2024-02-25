@@ -49,26 +49,26 @@ import ghidra.program.model.address.AddressRange;
 import ghidra.program.model.listing.*;
 import ghidra.program.util.*;
 import ghidra.trace.model.*;
-import ghidra.trace.model.Trace.TraceBreakpointChangeType;
 import ghidra.trace.model.breakpoint.TraceBreakpoint;
 import ghidra.trace.model.breakpoint.TraceBreakpointKind;
 import ghidra.trace.model.program.TraceProgramView;
 import ghidra.trace.util.TraceAddressSpace;
+import ghidra.trace.util.TraceEvents;
 import ghidra.util.Msg;
 import ghidra.util.datastruct.ListenerSet;
 
 @PluginInfo(
-		shortDescription = "Debugger logical breakpoints service plugin",
-		description = "Aggregates breakpoints from open programs and live traces",
-		category = PluginCategoryNames.DEBUGGER,
-		packageName = DebuggerPluginPackage.NAME,
-		status = PluginStatus.RELEASED,
-		eventsConsumed = { ProgramOpenedPluginEvent.class, ProgramClosedPluginEvent.class,
-			TraceOpenedPluginEvent.class, TraceActivatedPluginEvent.class,
-			TraceInactiveCoordinatesPluginEvent.class, TraceClosedPluginEvent.class, },
-		servicesRequired = { DebuggerTraceManagerService.class,
-			DebuggerStaticMappingService.class, },
-		servicesProvided = { DebuggerLogicalBreakpointService.class, })
+	shortDescription = "Debugger logical breakpoints service plugin",
+	description = "Aggregates breakpoints from open programs and live traces",
+	category = PluginCategoryNames.DEBUGGER,
+	packageName = DebuggerPluginPackage.NAME,
+	status = PluginStatus.RELEASED,
+	eventsConsumed = { ProgramOpenedPluginEvent.class, ProgramClosedPluginEvent.class,
+		TraceOpenedPluginEvent.class, TraceActivatedPluginEvent.class,
+		TraceInactiveCoordinatesPluginEvent.class, TraceClosedPluginEvent.class, },
+	servicesRequired = { DebuggerTraceManagerService.class,
+		DebuggerStaticMappingService.class, },
+	servicesProvided = { DebuggerLogicalBreakpointService.class, })
 public class DebuggerLogicalBreakpointServicePlugin extends Plugin
 		implements DebuggerLogicalBreakpointService {
 
@@ -198,10 +198,10 @@ public class DebuggerLogicalBreakpointServicePlugin extends Plugin
 			this.info = info;
 
 			listenForUntyped(DomainObjectEvent.RESTORED, e -> objectRestored());
-			listenFor(TraceBreakpointChangeType.ADDED, this::breakpointAdded);
-			listenFor(TraceBreakpointChangeType.CHANGED, this::breakpointChanged);
-			listenFor(TraceBreakpointChangeType.LIFESPAN_CHANGED, this::breakpointLifespanChanged);
-			listenFor(TraceBreakpointChangeType.DELETED, this::breakpointDeleted);
+			listenFor(TraceEvents.BREAKPOINT_ADDED, this::breakpointAdded);
+			listenFor(TraceEvents.BREAKPOINT_CHANGED, this::breakpointChanged);
+			listenFor(TraceEvents.BREAKPOINT_LIFESPAN_CHANGED, this::breakpointLifespanChanged);
+			listenFor(TraceEvents.BREAKPOINT_DELETED, this::breakpointDeleted);
 		}
 
 		@Override
@@ -1360,23 +1360,23 @@ public class DebuggerLogicalBreakpointServicePlugin extends Plugin
 
 	@Override
 	public void processEvent(PluginEvent event) {
-		if (event instanceof ProgramOpenedPluginEvent evt) {
-			programOpened(evt.getProgram());
+		if (event instanceof ProgramOpenedPluginEvent ev) {
+			programOpened(ev.getProgram());
 		}
-		else if (event instanceof ProgramClosedPluginEvent evt) {
-			programClosed(evt.getProgram());
+		else if (event instanceof ProgramClosedPluginEvent ev) {
+			programClosed(ev.getProgram());
 		}
-		else if (event instanceof TraceOpenedPluginEvent evt) {
-			traceOpened(evt.getTrace());
+		else if (event instanceof TraceOpenedPluginEvent ev) {
+			traceOpened(ev.getTrace());
 		}
-		else if (event instanceof TraceActivatedPluginEvent evt) {
-			traceSnapChanged(evt.getActiveCoordinates());
+		else if (event instanceof TraceActivatedPluginEvent ev) {
+			traceSnapChanged(ev.getActiveCoordinates());
 		}
-		else if (event instanceof TraceInactiveCoordinatesPluginEvent evt) {
-			traceSnapChanged(evt.getCoordinates());
+		else if (event instanceof TraceInactiveCoordinatesPluginEvent ev) {
+			traceSnapChanged(ev.getCoordinates());
 		}
-		else if (event instanceof TraceClosedPluginEvent evt) {
-			traceClosed(evt.getTrace());
+		else if (event instanceof TraceClosedPluginEvent ev) {
+			traceClosed(ev.getTrace());
 		}
 	}
 }

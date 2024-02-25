@@ -25,23 +25,20 @@ import org.apache.commons.lang3.ArrayUtils;
 
 import docking.ActionContext;
 import docking.WindowPosition;
-import docking.action.*;
+import docking.action.DockingActionIf;
 import ghidra.app.plugin.core.debug.DebuggerPluginPackage;
 import ghidra.app.plugin.core.debug.gui.DebuggerResources;
-import ghidra.app.plugin.core.debug.gui.DebuggerResources.SynchronizeTargetAction;
-import ghidra.app.plugin.core.debug.gui.DebuggerResources.ToToggleSelectionListener;
 import ghidra.app.services.*;
-import ghidra.app.services.DebuggerTraceManagerService.BooleanChangeAdapter;
 import ghidra.debug.api.tracemgr.DebuggerCoordinates;
-import ghidra.framework.model.DomainObjectEvent;
 import ghidra.framework.model.DomainObjectChangeRecord;
+import ghidra.framework.model.DomainObjectEvent;
 import ghidra.framework.plugintool.AutoService;
 import ghidra.framework.plugintool.ComponentProviderAdapter;
 import ghidra.framework.plugintool.annotation.AutoServiceConsumed;
 import ghidra.trace.model.Trace;
-import ghidra.trace.model.Trace.TraceSnapshotChangeType;
 import ghidra.trace.model.TraceDomainObjectListener;
 import ghidra.trace.model.time.TraceSnapshot;
+import ghidra.trace.util.TraceEvents;
 
 public class DebuggerThreadsProvider extends ComponentProviderAdapter {
 
@@ -67,8 +64,8 @@ public class DebuggerThreadsProvider extends ComponentProviderAdapter {
 		public ForSnapsListener() {
 			listenForUntyped(DomainObjectEvent.RESTORED, this::objectRestored);
 
-			listenFor(TraceSnapshotChangeType.ADDED, this::snapAdded);
-			listenFor(TraceSnapshotChangeType.DELETED, this::snapDeleted);
+			listenFor(TraceEvents.SNAPSHOT_ADDED, this::snapAdded);
+			listenFor(TraceEvents.SNAPSHOT_DELETED, this::snapDeleted);
 		}
 
 		private void setTrace(Trace trace) {
@@ -97,17 +94,13 @@ public class DebuggerThreadsProvider extends ComponentProviderAdapter {
 	final DebuggerThreadsPlugin plugin;
 
 	DebuggerCoordinates current = DebuggerCoordinates.NOWHERE;
-	Trace currentTrace; // Copy for transition
 
 	@AutoServiceConsumed
 	DebuggerTargetService targetService;
-	// @AutoServiceConsumed by method
+	// @AutoServiceConsumed // via method 
 	private DebuggerTraceManagerService traceManager;
 	@SuppressWarnings("unused")
 	private final AutoService.Wiring autoServiceWiring;
-
-	private final BooleanChangeAdapter synchronizeTargetChangeListener =
-		this::changedSynchronizeTarget;
 
 	private final ForSnapsListener forSnapsListener = new ForSnapsListener();
 
@@ -118,14 +111,7 @@ public class DebuggerThreadsProvider extends ComponentProviderAdapter {
 	DebuggerThreadsPanel panel;
 	DebuggerLegacyThreadsPanel legacyPanel;
 
-	DockingAction actionSaveTrace;
-	// TODO: This should probably be moved to ModelProvider
-	ToggleDockingAction actionSyncTarget;
-
 	ActionContext myActionContext;
-
-	// strong ref
-	ToToggleSelectionListener toToggleSelectionListener;
 
 	public DebuggerThreadsProvider(final DebuggerThreadsPlugin plugin) {
 		super(plugin.getTool(), DebuggerResources.TITLE_PROVIDER_THREADS, plugin.getName());
@@ -149,17 +135,7 @@ public class DebuggerThreadsProvider extends ComponentProviderAdapter {
 
 	@AutoServiceConsumed
 	public void setTraceManager(DebuggerTraceManagerService traceManager) {
-		if (this.traceManager != null) {
-			this.traceManager
-					.removeSynchronizeActiveChangeListener(synchronizeTargetChangeListener);
-		}
 		this.traceManager = traceManager;
-		if (traceManager != null) {
-			traceManager.addSynchronizeActiveChangeListener(synchronizeTargetChangeListener);
-			if (actionSyncTarget != null) {
-				actionSyncTarget.setSelected(traceManager.isSynchronizeActive());
-			}
-		}
 		contextChanged();
 	}
 
@@ -242,27 +218,6 @@ public class DebuggerThreadsProvider extends ComponentProviderAdapter {
 	}
 
 	protected void createActions() {
-		actionSyncTarget = SynchronizeTargetAction.builder(plugin)
-				.selected(traceManager != null && traceManager.isSynchronizeActive())
-				.enabledWhen(c -> traceManager != null)
-				.onAction(c -> toggleSyncFocus(actionSyncTarget.isSelected()))
-				.buildAndInstallLocal(this);
-		traceManager.addSynchronizeActiveChangeListener(
-			toToggleSelectionListener = new ToToggleSelectionListener(actionSyncTarget));
-	}
-
-	private void changedSynchronizeTarget(boolean value) {
-		if (actionSyncTarget == null || actionSyncTarget.isSelected()) {
-			return;
-		}
-		actionSyncTarget.setSelected(value);
-	}
-
-	private void toggleSyncFocus(boolean enabled) {
-		if (traceManager == null) {
-			return;
-		}
-		traceManager.setSynchronizeActive(enabled);
 	}
 
 	@Override

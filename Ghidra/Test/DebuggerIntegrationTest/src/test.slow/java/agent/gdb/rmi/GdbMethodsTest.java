@@ -108,7 +108,6 @@ public class GdbMethodsTest extends AbstractGdbTraceRmiTest {
 					file bash
 					ghidra trace start
 					%s
-					ghidra trace tx-open "Fake" 'ghidra trace create-obj Breakpoints'
 					starti"""
 					.formatted(INSTRUMENT_STOPPED));
 			RemoteMethod refreshBreakpoints = conn.getMethod("refresh_breakpoints");
@@ -853,7 +852,7 @@ public class GdbMethodsTest extends AbstractGdbTraceRmiTest {
 					%s
 					start"""
 					.formatted(INSTRUMENT_STOPPED));
-			RemoteMethod stepAdvance = conn.getMethod("Advance");
+			RemoteMethod stepAdvance = conn.getMethod("step_advance");
 			try (ManagedDomainObject mdo = openDomainObject("/New Traces/gdb/bash")) {
 				tb = new ToyDBTraceBuilder((Trace) mdo.get());
 				waitStopped();
@@ -881,7 +880,7 @@ public class GdbMethodsTest extends AbstractGdbTraceRmiTest {
 					%s
 					start"""
 					.formatted(INSTRUMENT_STOPPED));
-			RemoteMethod stepReturn = conn.getMethod("Return");
+			RemoteMethod stepReturn = conn.getMethod("step_return");
 			try (ManagedDomainObject mdo = openDomainObject("/New Traces/gdb/bash")) {
 				tb = new ToyDBTraceBuilder((Trace) mdo.get());
 				waitStopped();

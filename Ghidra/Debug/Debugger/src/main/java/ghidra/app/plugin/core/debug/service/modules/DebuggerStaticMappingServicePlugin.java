@@ -51,25 +51,25 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.mem.MemoryBlock;
 import ghidra.program.util.ProgramLocation;
 import ghidra.trace.model.*;
-import ghidra.trace.model.Trace.TraceStaticMappingChangeType;
 import ghidra.trace.model.memory.TraceMemoryRegion;
 import ghidra.trace.model.modules.*;
 import ghidra.trace.model.program.TraceProgramView;
+import ghidra.trace.util.TraceEvents;
 import ghidra.util.Msg;
 import ghidra.util.datastruct.ListenerSet;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.task.TaskMonitor;
 
 @PluginInfo(
-		shortDescription = "Debugger static mapping manager",
-		description = "Track and manage static mappings (program-trace relocations)",
-		category = PluginCategoryNames.DEBUGGER,
-		packageName = DebuggerPluginPackage.NAME,
-		status = PluginStatus.RELEASED,
-		eventsConsumed = { ProgramOpenedPluginEvent.class, ProgramClosedPluginEvent.class,
-			TraceOpenedPluginEvent.class, TraceClosedPluginEvent.class, },
-		servicesRequired = { ProgramManager.class, DebuggerTraceManagerService.class, },
-		servicesProvided = { DebuggerStaticMappingService.class, })
+	shortDescription = "Debugger static mapping manager",
+	description = "Track and manage static mappings (program-trace relocations)",
+	category = PluginCategoryNames.DEBUGGER,
+	packageName = DebuggerPluginPackage.NAME,
+	status = PluginStatus.RELEASED,
+	eventsConsumed = { ProgramOpenedPluginEvent.class, ProgramClosedPluginEvent.class,
+		TraceOpenedPluginEvent.class, TraceClosedPluginEvent.class, },
+	servicesRequired = { ProgramManager.class, DebuggerTraceManagerService.class, },
+	servicesProvided = { DebuggerStaticMappingService.class, })
 public class DebuggerStaticMappingServicePlugin extends Plugin
 		implements DebuggerStaticMappingService, DomainFolderChangeAdapter {
 
@@ -81,6 +81,24 @@ public class DebuggerStaticMappingServicePlugin extends Plugin
 
 		public MappingEntry(TraceStaticMapping mapping) {
 			this.mapping = mapping;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (!(o instanceof MappingEntry that)) {
+				return false;
+			}
+			// Yes, use identity, since it should be the same trace db records
+			if (this.mapping != that.mapping) {
+				return false;
+			}
+			if (this.program != that.program) {
+				return false;
+			}
+			if (!Objects.equals(this.staticRange, that.staticRange)) {
+				return false;
+			}
+			return true;
 		}
 
 		public Trace getTrace() {
@@ -222,8 +240,8 @@ public class DebuggerStaticMappingServicePlugin extends Plugin
 			this.trace = trace;
 
 			listenForUntyped(DomainObjectEvent.RESTORED, e -> objectRestored());
-			listenFor(TraceStaticMappingChangeType.ADDED, this::staticMappingAdded);
-			listenFor(TraceStaticMappingChangeType.DELETED, this::staticMappingDeleted);
+			listenFor(TraceEvents.MAPPING_ADDED, this::staticMappingAdded);
+			listenFor(TraceEvents.MAPPING_DELETED, this::staticMappingDeleted);
 
 			trace.addListener(this);
 
@@ -232,11 +250,14 @@ public class DebuggerStaticMappingServicePlugin extends Plugin
 
 		private void objectRestored() {
 			synchronized (lock) {
-				doAffectedByTraceClosed(trace);
+				var old = Map.copyOf(outbound);
 				outbound.clear();
 				loadOutboundEntries(); // Also places/updates corresponding inbound entries
-				// TODO: What about removed corresponding inbound entries?
-				doAffectedByTraceOpened(trace);
+				if (!old.equals(outbound)) {
+					// TODO: What about removed corresponding inbound entries? 
+					doAffectedByTraceClosed(trace);
+					doAffectedByTraceOpened(trace);
+				}
 			}
 		}
 
@@ -811,13 +832,13 @@ public class DebuggerStaticMappingServicePlugin extends Plugin
 	}
 
 	protected <T> T noTraceInfo() {
-		Msg.warn(this, "The given trace is not open in this tool " +
+		Msg.debug(this, "The given trace is not open in this tool " +
 			"(or the service hasn't received and processed the open-trace event, yet)");
 		return null;
 	}
 
 	protected <T> T noProgramInfo() {
-		Msg.warn(this, "The given program is not open in this tool " +
+		Msg.debug(this, "The given program is not open in this tool " +
 			"(or the service hasn't received and processed the open-program event, yet)");
 		return null;
 	}
