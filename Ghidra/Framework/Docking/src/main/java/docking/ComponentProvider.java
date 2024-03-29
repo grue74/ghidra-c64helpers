@@ -307,6 +307,14 @@ public abstract class ComponentProvider implements HelpDescriptor, ActionContext
 	}
 
 	/**
+	 * Returns all the local actions registered for this component provider.
+	 * @return all the local actions registered for this component provider
+	 */
+	public Set<DockingActionIf> getLocalActions() {
+		return dockingTool.getLocalActions(this);
+	}
+
+	/**
 	 * Removes all local actions from this component provider
 	 */
 	protected void removeAllLocalActions() {
@@ -618,6 +626,22 @@ public abstract class ComponentProvider implements HelpDescriptor, ActionContext
 		}
 
 		dockingTool.getWindowManager().setIcon(this, icon);
+	}
+
+	/**
+	 * Get the icon provided to {@link #setIcon(Icon)}
+	 * 
+	 * <p>
+	 * This method is final, guaranteeing there is always a means for extensions of this class to
+	 * obtain the original icon. Some classes may override {@link #getIcon()} to apply modifications
+	 * when the icon is displayed in the UI. Further extensions of that class may wish to override
+	 * {@link #getIcon()}, too, and so might want access to the original base icon. This method
+	 * provides that access.
+	 * 
+	 * @return the base icon
+	 */
+	protected final Icon getBaseIcon() {
+		return icon;
 	}
 
 	/**

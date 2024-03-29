@@ -24,6 +24,7 @@ import ghidra.app.util.Option;
 import ghidra.app.util.bin.ByteProvider;
 import ghidra.app.util.bin.ByteProviderWrapper;
 import ghidra.app.util.bin.format.macho.*;
+import ghidra.app.util.bin.format.swift.SwiftUtils;
 import ghidra.app.util.bin.format.ubi.*;
 import ghidra.app.util.importer.MessageLog;
 import ghidra.formats.gfilesystem.*;
@@ -60,7 +61,13 @@ public class MachoLoader extends AbstractLibrarySupportLoader {
 			MachHeader machHeader = new MachHeader(provider);
 			String magic =
 				CpuTypes.getMagicString(machHeader.getCpuType(), machHeader.getCpuSubType());
-			List<QueryResult> results = QueryOpinionService.query(MACH_O_NAME, magic, null);
+			List<String> sectionNames = machHeader.parseSegments()
+					.stream()
+					.flatMap(seg -> seg.getSections().stream())
+					.map(section -> section.getSectionName())
+					.toList();
+			String compiler = SwiftUtils.isSwift(sectionNames) ? "swift" : null;
+			List<QueryResult> results = QueryOpinionService.query(MACH_O_NAME, magic, compiler);
 			for (QueryResult result : results) {
 				loadSpecs.add(new LoadSpec(this, machHeader.getImageBase(), result));
 			}
@@ -83,7 +90,8 @@ public class MachoLoader extends AbstractLibrarySupportLoader {
 
 			// A Mach-O file may contain PRELINK information.  If so, we use a special
 			// program builder that knows how to deal with it.
-			if (MachoPrelinkUtils.isMachoPrelink(provider, monitor)) {
+			if (MachoPrelinkUtils.isMachoPrelink(provider, monitor) ||
+				MachoPrelinkUtils.isMachoFileset(provider)) {
 				MachoPrelinkProgramBuilder.buildProgram(program, provider, fileBytes, log, monitor);
 			}
 			else {
