@@ -31,7 +31,7 @@ import ghidra.app.util.bin.BinaryReader;
  */
 public enum DWARFAttribute {
 	DW_AT_sibling(0x1, reference),
-	DW_AT_location(0x2, exprloc, loclist),
+	DW_AT_location(0x2, exprloc, loclist, block),
 	DW_AT_name(0x3, string),
 	DW_AT_ordering(0x9, constant),
 	//DW_AT_subscr_data(0xa),
@@ -39,7 +39,7 @@ public enum DWARFAttribute {
 	DW_AT_bit_offset(0xc),	// dwarf-3
 	DW_AT_bit_size(0xd, constant, exprloc, reference),
 	//DW_AT_element_list(0xf),
-	DW_AT_stmt_list(0x10, lineptr),
+	DW_AT_stmt_list(0x10, lineptr, constant),
 	DW_AT_low_pc(0x11, address),
 	DW_AT_high_pc(0x12, address, constant),
 	DW_AT_language(0x13, constant),
@@ -78,7 +78,7 @@ public enum DWARFAttribute {
 	DW_AT_discr_list(0x3d, block),
 	DW_AT_encoding(0x3e, constant),
 	DW_AT_external(0x3f, flag),
-	DW_AT_frame_base(0x40, exprloc, loclist),
+	DW_AT_frame_base(0x40, exprloc, loclist, block),
 	DW_AT_friend(0x41, reference),
 	DW_AT_identifier_case(0x42, constant),
 	DW_AT_macro_info(0x43, macptr),
@@ -252,7 +252,7 @@ public enum DWARFAttribute {
 
 		@Override
 		protected String getRawAttributeIdDescription() {
-			return "DW_AT_???? %d (0x%x)".formatted(attributeId, attributeId);
+			return "DW_AT_???? %d (0x%x)".formatted(rawAttributeId, rawAttributeId);
 		}
 
 		@Override

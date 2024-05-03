@@ -37,6 +37,8 @@ import ghidra.debug.api.tracermi.TraceRmiLaunchOffer;
 import ghidra.debug.api.tracermi.TraceRmiLaunchOffer.LaunchConfigurator;
 import ghidra.debug.api.tracermi.TraceRmiLaunchOffer.PromptMode;
 import ghidra.debug.spi.tracermi.TraceRmiLaunchOpinion;
+import ghidra.formats.gfilesystem.FSRL;
+import ghidra.framework.model.DomainFile;
 import ghidra.framework.options.*;
 import ghidra.framework.plugintool.*;
 import ghidra.framework.plugintool.util.PluginStatus;
@@ -57,7 +59,7 @@ import ghidra.util.xml.XmlUtilities;
 			""",
 	category = PluginCategoryNames.DEBUGGER,
 	packageName = DebuggerPluginPackage.NAME,
-	status = PluginStatus.UNSTABLE,
+	status = PluginStatus.RELEASED,
 	eventsConsumed = {
 		ProgramActivatedPluginEvent.class,
 		ProgramClosedPluginEvent.class,
@@ -122,11 +124,7 @@ public class TraceRmiLauncherServicePlugin extends Plugin
 		}
 	}
 
-	public static File getProgramPath(Program program) {
-		if (program == null) {
-			return null;
-		}
-		String path = program.getExecutablePath();
+	public static File tryProgramPath(String path) {
 		if (path == null) {
 			return null;
 		}
@@ -141,6 +139,26 @@ public class TraceRmiLauncherServicePlugin extends Plugin
 			Msg.error(TraceRmiLauncherServicePlugin.class, "Cannot examine file " + path, e);
 			return null;
 		}
+	}
+
+	public static String extractFirstFsrl(Program program) {
+		FSRL fsrl = FSRL.fromProgram(program);
+		if (fsrl == null) {
+			return null;
+		}
+		FSRL first = fsrl.split().get(0);
+		return first.getPath();
+	}
+
+	public static File getProgramPath(Program program) {
+		if (program == null) {
+			return null;
+		}
+		File exec = tryProgramPath(program.getExecutablePath());
+		if (exec != null) {
+			return exec;
+		}
+		return tryProgramPath(extractFirstFsrl(program));
 	}
 
 	protected final ToolOptions options;
@@ -192,6 +210,15 @@ public class TraceRmiLauncherServicePlugin extends Plugin
 				.toList();
 	}
 
+	@Override
+	public List<TraceRmiLaunchOffer> getSavedOffers(Program program) {
+		Map<String, Long> savedConfigs = loadSavedConfigs(program);
+		return getOffers(program).stream()
+				.filter(o -> savedConfigs.containsKey(o.getConfigName()))
+				.sorted(Comparator.comparing(o -> -savedConfigs.get(o.getConfigName())))
+				.toList();
+	}
+
 	protected void executeTask(Task task) {
 		ProgressService progressService = tool.getService(ProgressService.class);
 		if (progressService != null) {
@@ -210,10 +237,18 @@ public class TraceRmiLauncherServicePlugin extends Plugin
 		executeTask(new ConfigureAndLaunchTask(offer));
 	}
 
+	protected static String getProgramName(Program program) {
+		DomainFile df = program.getDomainFile();
+		if (df != null) {
+			return df.getName();
+		}
+		return program.getName();
+	}
+
 	protected String[] constructLaunchMenuPrefix() {
 		return new String[] {
 			DebuggerPluginPackage.NAME,
-			"Configure and Launch " + currentProgram.getName() + " using..." };
+			"Configure and Launch " + getProgramName(currentProgram) + " using..." };
 	}
 
 	protected String[] prependConfigAndLaunch(List<String> menuPath) {
