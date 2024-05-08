@@ -120,6 +120,36 @@ ADDR8:  imm8    is imm8		{ export *:1 imm8; }
 ADDR16: imm16   is imm16   	{ export *:1 imm16; }
 ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
 
+# Zero Page
+OP3: imm8       is bbb=1; imm8			{ export *:1 imm8; }
+# Zero Page Indexed X
+OP3: imm8,X     is bbb=5 & X; imm8		{ tmp:2 = zext(imm8 + X); export *:1 tmp; }
+# Absolute
+OP3: imm16      is bbb=3; imm16			{ export *:1 imm16; }
+# Absolute Indexed X
+OP3: imm16,X    is bbb=7 & X; imm16		{ tmp:2 = imm16 + zext(X); export *:1 tmp; }
+# Absolute Indexed Y
+OP3: imm16,Y    is bbb=6 & Y; imm16		{ tmp:2 = imm16 + zext(Y); export *:1 tmp; }
+# Indirect X
+OP3: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 addr; export *:1 tmp; }
+# Indirect Y
+OP3: (imm8),Y   is bbb=4 & Y; imm8		{ addr:2 = imm8; tmp:2 = *:2 addr; tmp = tmp + zext(Y); export *:1 tmp; }
+
+
+
+# Immediate
+NOOP1: "#"imm8    is bbb=2; imm8			{ tmp:1 = imm8; export tmp; }
+# Zero Page
+NOOP1: imm8       is bbb=1; imm8			{ export *:1 imm8; }
+# Zero Page Indexed X
+NOOP1: imm8,X     is bbb=5 & X; imm8		{ tmp:2 = zext(imm8 + X); export *:1 tmp; }
+# Absolute
+NOOP1: imm16      is bbb=3; imm16			{ export *:1 imm16; }
+# Absolute Indexed X
+NOOP1: imm16,X    is bbb=7 & X; imm16		{ tmp:2 = imm16 + zext(X); export *:1 tmp; }
+# Indirect X
+NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 addr; export *:1 tmp; }
+
 
 # Instructions
 
@@ -324,13 +354,6 @@ ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
 	resultFlags(A);
 }
 
-#:LAX OP1 	is op=0xAB
-#{
-#	A = OP1;
-#	X = OP1;
-#	resultFlags (A,X);
-#}
-
 :LDY OP2     is (op=0xA0 | op=0xA4 | op=0xAC | op=0xB4 | op=0xBC) ... & OP2
 {
 	Y = OP2;
@@ -353,12 +376,13 @@ ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
 	N = 0;	
 }
 
-:NOP     is op=0xEA
+:NOP is (op=0x1A | op=0x3A | op=0x5A | op=0x7A | op=0xDA | op=0xEA | op=0xFA)
 {
 }
 
-:NOP ADDR16 is op=0x0C;ADDR16
+:NOP NOOP1 is (op=0x0C | op=0x04 | op=0x44 | op=0x64 | op=0x80 | op=0x89 | op=0x82 | op=0xC2 | op=0xE2 | op=0x1C | op=0x3C | op=0x5C | op=0x7C | op=0xDC | op=0xFC) ... & NOOP1
 {
+
 }
 
 :ORA  OP1    is  (cc=1 & aaa=0) ... & OP1
@@ -432,17 +456,13 @@ ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
 	return [tmp];
 }
 
-:SBC OP1     is (cc=1 & aaa=7) ... & OP1
+:SBC OP1     is ((cc=1 & aaa=7) | op=0xEB) ... & OP1
 {
 	local op1 = OP1;
 	local result = A - op1 - !C;
 	
 	subtraction_flags1(A, op1, result);
 	A = result;	
-	
-	# resultFlags(tmp);
-	# C = ((A <= op1) * C) | (A < op1);
-	# A = tmp;
 }
 
 :SEC     is op=0x38
@@ -490,6 +510,7 @@ ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
 :TSX     is op=0xBA
 {
 	X = S;
+    resultFlags(X);	
 }
 
 :TXA     is op=0x8A
@@ -508,8 +529,208 @@ ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
 	A = Y;
 	resultFlags(A);
 }
-:LAX OP1	is op=0xAB ... & OP1
+
+:SLO OP3 is (op=0x03 | op=0x07 | op=0x0F | op=0x13 | op=0x17 | op=0x1B | op=0x1F) ... & OP3
+{
+	local tmp = OP3;
+	C = tmp >> 7;
+	tmp = tmp << 1;
+	OP3 = tmp;
+
+	A = A | tmp;
+	resultFlags(A);
+}
+
+:RLA OP3 is (op=0x23 | op=0x27 | op=0x2F | op=0x33 | op=0x37 | op=0x3B | op=0x3F) ... & OP3
+{
+	local tmpC = C;
+	local op3 = OP3;
+	C = op3 >> 7;
+	local result = op3 << 1;
+	result = result | tmpC;
+	OP3 = result;
+
+	A = A & result; 
+	resultFlags(A);
+}
+
+:SRE OP3 is (op=0x43 | op=0x47 | op=0x4F | op=0x53 | op=0x57 | op=0x5B | op=0x5F) ... & OP3
+{
+	local tmp = OP3;
+	C = tmp & 1;
+	tmp = tmp >> 1;
+	OP3 = tmp;
+
+	A = A ^ tmp;
+	resultFlags(A);
+}
+
+:RRA OP3 is (op=0x63 | op=0x67 | op=0x6F | op=0x73 | op=0x77 | op=0x7B | op=0x7F) ... & OP3
+{
+	local tmpC = C << 7;
+	local tmp = OP3;
+	C = tmp & 1;
+	tmp = tmp >> 1;
+	tmp = tmp | tmpC;
+	OP3 = tmp;
+
+	local op3 = tmp;
+	tmpC = C;
+	C = carry(A, op3);
+	A = A + op3 + tmpC;
+	resultFlags(A);
+	V = C;
+}
+
+:DCP OP3 is (op=0xC3 | op=0xC7 | op=0xCF | op=0xD3 | op=0xD7 | op=0xDB | op=0xDF) ... & OP3
+{
+	local tmp = OP3 - 1;
+	OP3 = tmp;
+
+	local op3 = tmp;
+	tmp = A - op3;
+	resultFlags(tmp);
+	C = (A >= op3);
+}
+
+:ISC OP3 is (op=0xE3 | op=0xE7 | op=0xEF | op=0xF3 | op=0xF7 | op=0xFB | op=0xFF) ... & OP3
+{
+	local tmp = OP3 + 1;
+	OP3 = tmp;
+
+	local op3 = tmp;
+	local result = A - op3 - !C;
+	
+	subtraction_flags1(A, op3, result);
+	A = result;
+}
+
+:ANC OP2 is (op=0x0B | op=0x2B) ... & OP2
+{
+	A = A & OP2;
+	resultFlags(A);
+
+	local tmpA = A;
+	C = tmpA >> 7;
+}
+
+:ALR OP2 is (op=0x4B) ... & OP2
+{
+	local tmpA = A & OP2;
+	C = (tmpA >> 1) & 1;
+
+	A = tmpA >> 1;
+
+	Z = (A == 0);
+	N = 0;
+}
+
+:ARR OP2 is (op=0x6B) ... & OP2
+{
+	local inC = C;
+	local inA7 = (A >> 7) & 1;
+	local inA6 = (A >> 6) & 1;
+
+	local tmpA = A & OP2;
+
+	local newA = tmpA;
+	local shiftedC = inC << 7;
+	newA = newA >> 1;
+	newA = newA | shiftedC;
+	A = newA;
+
+	resultFlags(newA);
+
+#	if (D == 0) {
+		C = inA7;
+		V = (inA6 != inA7);
+#	}
+
+	# TODO: Unintented decimal mode behaviour missing
+}
+
+:SBX OP2 is (op=0xCB) ... & OP2
+{
+	local op2 = OP2;
+	local tmpA = A & X;
+
+	local tmp = tmpA - op2;
+
+	X = tmp;
+	resultFlags(X);
+	C = (A >= op2);
+}
+
+:LAX OP3 is (op=0xA7 | op=0xB7 | op=0xA3 | op=0xB3 | op=0xAF | op=0xBF) ... & OP3
 { 	
-	A=OP1;
-	X=OP1;
+	A = OP3;
+	X = OP3;
+	resultFlags(OP3);
+}
+
+:LAX OP1 is (op=0xAB) ... & OP1 {
+	local tmpA = A;
+	resultFlags(A);
+
+	local magic_CONST = 0xEE;
+	tmpA = (tmpA | magic_CONST) & OP1;
+
+	A = tmpA;
+	X = tmpA;
+}
+
+:SAX OP3 is (op=0x87 | op=0x97 | op=0x83 | op=0x8F) ... & OP3
+{
+	OP3 = A & X;
+}
+
+:ANE OP1 is (op=0x8B) ... & OP1
+{
+	local tmpA = A;
+	resultFlags(A);
+
+	local magic_CONST = 0xEE;
+	tmpA = ((tmpA | magic_CONST) & X) & OP1;
+
+	A = tmpA;
+}
+
+:SHY OP2 is (op=0x9C) ... & OP2
+{ 
+	# TODO: How to get the address?!?
+	OP2 = Y & ((OP2 >> 8) + 1);
+}
+
+:SHA OP2 is (op=0x93 | op=0x9F) ... & OP2
+{
+	# TODO: How to get the address?!?
+	OP2 = A & X & ((OP2 >> 8) + 1);
+}
+
+:TAS OP2 is (op=0x9B) ... & OP2
+{
+	*:1 (SP) = A & X;
+	# TODO: How to get the address?!?
+	OP2 = A & X & ((OP2 >> 8) + 1);
+}
+
+:LAS OP2 is (op=0xBB) ... & OP2
+{
+	local tmp = OP2 & (*:1 (SP));
+	resultFlags(tmp);
+
+	A = tmp;
+	X = tmp;
+	*:1 (SP) = tmp;
+}
+
+:SHX OP2 is (op=0x9E) ... & OP2
+{
+	# TODO: How to get the address?!?
+	OP2 = X & ((OP2 >> 8) + 1);
+}
+
+:JAM is (op=0x02 | op=0x22 | op=0x42 | op=0x62 | op=0x12 | op=0x32 | op=0x52 | op=0x72 | op=0x92 | op=0xB2 | op=0xD2 | op=0xF2)
+{
+	# TODO: Should this do something?
 }
