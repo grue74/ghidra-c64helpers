@@ -115,7 +115,6 @@ OP2LD: OP2      is OP2                  { export OP2; }
 OP2LD: imm8,Y   is bbb=5 & Y; imm8		{ tmp:2 = zext(imm8 + Y); export *:1 tmp; }
 OP2LD: imm16,Y  is bbb=7 & Y; imm16		{ tmp:2 = imm16 + zext(Y); export *:1 tmp; }
 
-
 ADDR8:  imm8    is imm8		{ export *:1 imm8; }
 ADDR16: imm16   is imm16   	{ export *:1 imm16; }
 ADDRI:  (imm16)   is imm16    { tmp:2 = imm16; export *:2 tmp; }
@@ -135,14 +134,29 @@ OP3: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 addr;
 # Indirect Y
 OP3: (imm8),Y   is bbb=4 & Y; imm8		{ addr:2 = imm8; tmp:2 = *:2 addr; tmp = tmp + zext(Y); export *:1 tmp; }
 
+# Immediate
+OP4: "#"imm8    is bbb=2; imm8			{ tmp:1 = imm8; export tmp; }
+# Zero Page
+OP4: imm8       is bbb=1; imm8			{ export *:1 imm8; }
+# Zero Page Indexed X
+OP4: imm8,Y     is bbb=5 & Y; imm8		{ tmp:2 = zext(imm8 + Y); export *:1 tmp; }
+# Absolute
+OP4: imm16      is bbb=3; imm16			{ export *:1 imm16; }
+# Absolute Indexed Y
+OP4: imm16,Y    is bbb=7 & Y; imm16		{ tmp:2 = imm16 + zext(X); export *:1 tmp; }
+# Indirect X
+OP4: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 addr; export *:1 tmp; }
+# Indirect Y
+OP4: (imm8),Y   is bbb=4 & Y; imm8		{ addr:2 = imm8; tmp:2 = *:2 addr; tmp = tmp + zext(Y); export *:1 tmp; }
 
 
 # Immediate
-NOOP1: "#"imm8    is bbb=2; imm8			{ tmp:1 = imm8; export tmp; }
+NOOP1: "#"imm8    is (op=0x80 | op=0x82 | op=0x89 | op=0xC2 | op=0xE2); imm8 	{ tmp:1 = imm8; export tmp; }
 # Zero Page
-NOOP1: imm8       is bbb=1; imm8			{ export *:1 imm8; }
+NOOP1: imm8       is (op=0x04 | op=0x44 | op=0x64); imm8			{ export *:1 imm8; }
 # Zero Page Indexed X
-NOOP1: imm8,X     is bbb=5 & X; imm8		{ tmp:2 = zext(imm8 + X); export *:1 tmp; }
+NOOP1: imm8,X     is (op=0x14 | op=0x34 | op=0x54 | op=0x74 | op=0xD4 | op=0xF4) & X; imm8		{ tmp:2 = zext(imm8 + X); export *:1 tmp; }
+
 # Absolute
 NOOP1: imm16      is bbb=3; imm16			{ export *:1 imm16; }
 # Absolute Indexed X
@@ -376,13 +390,14 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	N = 0;	
 }
 
+# NOP match and decode ok
 :NOP is (op=0x1A | op=0x3A | op=0x5A | op=0x7A | op=0xDA | op=0xEA | op=0xFA)
 {
 }
 
-:NOP NOOP1 is (op=0x0C | op=0x04 | op=0x44 | op=0x64 | op=0x80 | op=0x89 | op=0x82 | op=0xC2 | op=0xE2 | op=0x1C | op=0x3C | op=0x5C | op=0x7C | op=0xDC | op=0xFC) ... & NOOP1
+# NOP match and decode ok
+:NOP NOOP1 is (op=0x14 | op=0x34 | op=0x54 | op=0x74 | op=0xD4 | op=0xF4 | op=0x0C | op=0x04 | op=0x44 | op=0x64 | op=0x80 | op=0x89 | op=0x82 | op=0xC2 | op=0xE2 | op=0x1C | op=0x3C | op=0x5C | op=0x7C | op=0xDC | op=0xFC) ... & NOOP1
 {
-
 }
 
 :ORA  OP1    is  (cc=1 & aaa=0) ... & OP1
@@ -510,7 +525,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 :TSX     is op=0xBA
 {
 	X = S;
-    resultFlags(X);	
+	resultFlags(X);
 }
 
 :TXA     is op=0x8A
@@ -530,6 +545,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	resultFlags(A);
 }
 
+# SLO match and decode ok
 :SLO OP3 is (op=0x03 | op=0x07 | op=0x0F | op=0x13 | op=0x17 | op=0x1B | op=0x1F) ... & OP3
 {
 	local tmp = OP3;
@@ -541,6 +557,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	resultFlags(A);
 }
 
+# RLA match and decode ok
 :RLA OP3 is (op=0x23 | op=0x27 | op=0x2F | op=0x33 | op=0x37 | op=0x3B | op=0x3F) ... & OP3
 {
 	local tmpC = C;
@@ -554,6 +571,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	resultFlags(A);
 }
 
+# SRE match and decode ok
 :SRE OP3 is (op=0x43 | op=0x47 | op=0x4F | op=0x53 | op=0x57 | op=0x5B | op=0x5F) ... & OP3
 {
 	local tmp = OP3;
@@ -565,6 +583,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	resultFlags(A);
 }
 
+# RRA match and decode ok
 :RRA OP3 is (op=0x63 | op=0x67 | op=0x6F | op=0x73 | op=0x77 | op=0x7B | op=0x7F) ... & OP3
 {
 	local tmpC = C << 7;
@@ -582,6 +601,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	V = C;
 }
 
+# DCP match and decode ok
 :DCP OP3 is (op=0xC3 | op=0xC7 | op=0xCF | op=0xD3 | op=0xD7 | op=0xDB | op=0xDF) ... & OP3
 {
 	local tmp = OP3 - 1;
@@ -593,6 +613,7 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	C = (A >= op3);
 }
 
+# ISC match and decode ok
 :ISC OP3 is (op=0xE3 | op=0xE7 | op=0xEF | op=0xF3 | op=0xF7 | op=0xFB | op=0xFF) ... & OP3
 {
 	local tmp = OP3 + 1;
@@ -605,18 +626,20 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	A = result;
 }
 
-:ANC OP2 is (op=0x0B | op=0x2B) ... & OP2
+# ANC match and decode ok
+:ANC OP1 is (op=0x0B | op=0x2B) ... & OP1
 {
-	A = A & OP2;
+	A = A & OP1;
 	resultFlags(A);
 
 	local tmpA = A;
 	C = tmpA >> 7;
 }
 
-:ALR OP2 is (op=0x4B) ... & OP2
+# ALR match and decode ok
+:ALR OP1 is (op=0x4B) ... & OP1
 {
-	local tmpA = A & OP2;
+	local tmpA = A & OP1;
 	C = (tmpA >> 1) & 1;
 
 	A = tmpA >> 1;
@@ -625,13 +648,14 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	N = 0;
 }
 
-:ARR OP2 is (op=0x6B) ... & OP2
+# ARR match and decode ok
+:ARR OP1 is (op=0x6B) ... & OP1
 {
 	local inC = C;
 	local inA7 = (A >> 7) & 1;
 	local inA6 = (A >> 6) & 1;
 
-	local tmpA = A & OP2;
+	local tmpA = A & OP1;
 
 	local newA = tmpA;
 	local shiftedC = inC << 7;
@@ -649,25 +673,28 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	# TODO: Unintented decimal mode behaviour missing
 }
 
-:SBX OP2 is (op=0xCB) ... & OP2
+# SBX match and decode ok
+:SBX OP1 is (op=0xCB) ... & OP1
 {
-	local op2 = OP2;
+	local op1 = OP1;
 	local tmpA = A & X;
 
-	local tmp = tmpA - op2;
+	local tmp = tmpA - op1;
 
 	X = tmp;
 	resultFlags(X);
-	C = (A >= op2);
+	C = (A >= op1);
 }
 
-:LAX OP3 is (op=0xA7 | op=0xB7 | op=0xA3 | op=0xB3 | op=0xAF | op=0xBF) ... & OP3
+# LAX match and decode ok
+:LAX OP4 is (op=0xA7 | op=0xB7 | op=0xA3 | op=0xB3 | op=0xAF | op=0xBF) ... & OP4
 { 	
-	A = OP3;
-	X = OP3;
-	resultFlags(OP3);
+	A = OP4;
+	X = OP4;
+	resultFlags(OP4);
 }
 
+# LAX match and decode ok
 :LAX OP1 is (op=0xAB) ... & OP1 {
 	local tmpA = A;
 	resultFlags(A);
@@ -679,11 +706,13 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	X = tmpA;
 }
 
-:SAX OP3 is (op=0x87 | op=0x97 | op=0x83 | op=0x8F) ... & OP3
+# SAX match and decode ok
+:SAX OP4 is (op=0x87 | op=0x97 | op=0x83 | op=0x8F) ... & OP4
 {
-	OP3 = A & X;
+	OP4 = A & X;
 }
 
+# ANE match and decode ok
 :ANE OP1 is (op=0x8B) ... & OP1
 {
 	local tmpA = A;
@@ -695,28 +724,32 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	A = tmpA;
 }
 
+# SHY match and decode ok
 :SHY OP2 is (op=0x9C) ... & OP2
 { 
 	# TODO: How to get the address?!?
 	OP2 = Y & ((OP2 >> 8) + 1);
 }
 
-:SHA OP2 is (op=0x93 | op=0x9F) ... & OP2
+# SHA match and decode ok
+:SHA OP4 is (op=0x93 | op=0x9F) ... & OP4
 {
 	# TODO: How to get the address?!?
-	OP2 = A & X & ((OP2 >> 8) + 1);
+	OP4 = A & X & ((OP4 >> 8) + 1);
 }
 
-:TAS OP2 is (op=0x9B) ... & OP2
+# TAS match and decode ok
+:TAS OP3 is (op=0x9B) ... & OP3
 {
 	*:1 (SP) = A & X;
 	# TODO: How to get the address?!?
-	OP2 = A & X & ((OP2 >> 8) + 1);
+	OP3 = A & X & ((OP3 >> 8) + 1);
 }
 
-:LAS OP2 is (op=0xBB) ... & OP2
+# LAS match and decode ok
+:LAS OP3 is (op=0xBB) ... & OP3
 {
-	local tmp = OP2 & (*:1 (SP));
+	local tmp = OP3 & (*:1 (SP));
 	resultFlags(tmp);
 
 	A = tmp;
@@ -724,12 +757,14 @@ NOOP1: (imm8,X)   is bbb=0 & X; imm8		{ addr:2 = zext(imm8 + X); tmp:2 = *:2 add
 	*:1 (SP) = tmp;
 }
 
-:SHX OP2 is (op=0x9E) ... & OP2
+# SHX match and decode ok
+:SHX OP2LD is (op=0x9E) ... & OP2LD
 {
 	# TODO: How to get the address?!?
-	OP2 = X & ((OP2 >> 8) + 1);
+	OP2LD = X & ((OP2LD >> 8) + 1);
 }
 
+# JAM match and decode ok
 :JAM is (op=0x02 | op=0x22 | op=0x42 | op=0x62 | op=0x12 | op=0x32 | op=0x52 | op=0x72 | op=0x92 | op=0xB2 | op=0xD2 | op=0xF2)
 {
 	# TODO: Should this do something?
