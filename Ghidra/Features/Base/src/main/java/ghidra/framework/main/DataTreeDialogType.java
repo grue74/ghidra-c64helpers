@@ -13,22 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <pthread.h>
-#include <stdio.h>
-#include <unistd.h>
+package ghidra.framework.main;
 
-pthread_t thread;
-
-void* work(void* param) {
-    printf("I'm %d, PID: %d\n", (int)param, getpid());
-    char *const argv[] = { "echo", "test", NULL };
-    execv("/usr/bin/echo", argv);
-    printf("Should never get here\n");
-}
-
-int main() {
-    pthread_create(&thread, NULL, work, (void*)1);
-    while (1) {
-        sleep(10);
-    }
+/**
+ * Types of ways to use a DataTreeDialog.
+ */
+public enum DataTreeDialogType {
+	/**
+	 * Dialog type for opening domain data files
+	 */
+	OPEN,
+	/**
+	 * Dialog type for saving domain data files
+	 */
+	SAVE,
+	/**
+	 * Dialog type for choosing a user folder
+	 */
+	CHOOSE_FOLDER,
+	/**
+	 * Dialog type for creating domain data files
+	 */
+	CREATE
 }
