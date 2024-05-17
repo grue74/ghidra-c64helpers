@@ -103,7 +103,8 @@ import java.util.Arrays;
 				"\u250C", "\u2534", "\u252C", "\u2524", "\u258E", "\u258D", "\uD83E\uDF88", "\uD83E\uDF82",
 				"\uD83E\uDF83", "\u2583", "\uD83E\uDF7F", "\u2596", "\u259D", "\u2518", "\u2598", "\u259A",
 // Inverted characters that follow cannot be found in Unicode, map for the C64 Pro Mono font.
-			"\uEF80", "\uEF81", "\uEF82", "\uEF83", "\uEF84", "\uEF85", "\uEF86", "\uEF87", 
+
+/*			"\uEF80", "\uEF81", "\uEF82", "\uEF83", "\uEF84", "\uEF85", "\uEF86", "\uEF87", 
 			"\uEF88", "\uEF89", "\uEF8A", "\uEF8B", "\uEF8C", "\uEF8D", "\uEF8E", "\uEF8F", 
 			"\uEF90", "\uEF91", "\uEF92", "\uEF93", "\uEF94", "\uEF95", "\uEF96", "\uEF97", 
 			"\uEF98", "\uEF99", "\uEF9A", "\uEF9B", "\uEF9C", "\uEF9D", "\uEF9E", "\uEF9F", 
@@ -119,6 +120,24 @@ import java.util.Arrays;
 			"\uEFE8", "\uEFE9", "\uEFEA", "\uEFEB", "\uEFEC", "\uEFED", "\uEFEE", "\uEFEF", 
 			"\uEFF0", "\uEFF1", "\uEFF2", "\uEFF3", "\uEFF4", "\uEFF5", "\uEFF6", "\uEFF7", 
 			"\uEFF8", "\uEFF9", "\uEFFA", "\uEFFB", "\uEFFC", "\uEFFD", "\uEFFE", "\uEFFF"
+*/
+// Mapping for Pet Me font
+			"\uE380", "\uE381", "\uE382", "\uE383", "\uE384", "\uE385", "\uE386", "\uE387", 
+			"\uE388", "\uE389", "\uE38A", "\uE38B", "\uE38C", "\uE38D", "\uE38E", "\uE38F", 
+			"\uE390", "\uE391", "\uE392", "\uE393", "\uE394", "\uE395", "\uE396", "\uE397", 
+			"\uE398", "\uE399", "\uE39A", "\uE39B", "\uE39C", "\uE39D", "\uE39E", "\uE39F", 
+			"\uE3A0", "\uE3A1", "\uE3A2", "\uE3A3", "\uE3A4", "\uE3A5", "\uE3A6", "\uE3A7", 
+			"\uE3A8", "\uE3A9", "\uE3AA", "\uE3AB", "\uE3AC", "\uE3AD", "\uE3AE", "\uE3AF", 
+			"\uE3B0", "\uE3B1", "\uE3B2", "\uE3B3", "\uE3B4", "\uE3B5", "\uE3B6", "\uE3B7", 
+			"\uE3B8", "\uE3B9", "\uE3BA", "\uE3BB", "\uE3BC", "\uE3BD", "\uE3BE", "\uE3BF", 
+			"\uE3C0", "\uE3C1", "\uE3C2", "\uE3C3", "\uE3C4", "\uE3C5", "\uE3C6", "\uE3C7", 
+			"\uE3C8", "\uE3C9", "\uE3CA", "\uE3CB", "\uE3CC", "\uE3CD", "\uE3CE", "\uE3CF", 
+			"\uE3D0", "\uE3D1", "\uE3D2", "\uE3D3", "\uE3D4", "\uE3D5", "\uE3D6", "\uE3D7", 
+			"\uE3D8", "\uE3D9", "\uE3DA", "\uE3DB", "\uE3DC", "\uE3DD", "\uE3DE", "\uE3DF", 
+			"\uE3E0", "\uE3E1", "\uE3E2", "\uE3E3", "\uE3E4", "\uE3E5", "\uE3E6", "\uE3E7", 
+			"\uE3E8", "\uE3E9", "\uE3EA", "\uE3EB", "\uE3EC", "\uE3ED", "\uE3EE", "\uE3EF", 
+			"\uE3F0", "\uE3F1", "\uE3F2", "\uE3F3", "\uE3F4", "\uE3F5", "\uE3F6", "\uE3F7", 
+			"\uE3F8", "\uE3F9", "\uE3FA", "\uE3FB", "\uE3FC", "\uE3FD", "\uE3FE", "\uE3FF"
 		};
 
 		byte b = block.getByte(index);
