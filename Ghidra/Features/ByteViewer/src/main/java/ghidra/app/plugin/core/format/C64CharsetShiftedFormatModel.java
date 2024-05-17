@@ -89,7 +89,7 @@ import java.util.Arrays;
 				"@", "A", "B", "C", "D", "E", "F", "G",
 				"H", "I", "J", "K", "L", "M", "N", "O",
 				"P", "Q", "R", "S", "T", "U", "V", "W",
-				"X", "Y", "Z", "[", "£", "]", "\u2191", "\u2190",
+				"X", "Y", "Z", "[", "\u00A3", "]", "\u2191", "\u2190",
 				" ", "!", "\"", "#", "$", "%", "&", "'",
 				"(", ")", "*", "+", ",", "-", ".", "/",
 				"0", "1", "2", "3", "4", "5", "6", "7",
@@ -102,6 +102,7 @@ import java.util.Arrays;
 				"\uD83E\uDF8F", "\u25E4", "\uD83E\uDF87", "\u251C", "\u2597", "\u2514", "\u2510", "\u2582",
 				"\u250C", "\u2534", "\u252C", "\u2524", "\u258E", "\u258D", "\uD83E\uDF88", "\uD83E\uDF82",
 				"\uD83E\uDF83", "\u2583", "\uD83E\uDF7F", "\u2596", "\u259D", "\u2518", "\u2598", "\u259A",
+
 // Inverted characters that follow cannot be found in Unicode, map for the C64 Pro Mono font.
 
 /*			"\uEF80", "\uEF81", "\uEF82", "\uEF83", "\uEF84", "\uEF85", "\uEF86", "\uEF87", 
@@ -121,6 +122,7 @@ import java.util.Arrays;
 			"\uEFF0", "\uEFF1", "\uEFF2", "\uEFF3", "\uEFF4", "\uEFF5", "\uEFF6", "\uEFF7", 
 			"\uEFF8", "\uEFF9", "\uEFFA", "\uEFFB", "\uEFFC", "\uEFFD", "\uEFFE", "\uEFFF"
 */
+
 // Mapping for Pet Me font
 			"\uE180", "\uE181", "\uE182", "\uE183", "\uE184", "\uE185", "\uE186", "\uE187", 
 			"\uE188", "\uE189", "\uE18A", "\uE18B", "\uE18C", "\uE18D", "\uE18E", "\uE18F", 
