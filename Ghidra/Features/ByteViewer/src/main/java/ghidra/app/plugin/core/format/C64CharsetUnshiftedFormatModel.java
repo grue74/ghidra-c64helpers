@@ -124,22 +124,22 @@ import java.util.Arrays;
 */
 // Mappings for Pet Me font
 
-			"\uE280", "\uE281", "\uE282", "\uE283", "\uE284", "\uE285", "\uE286", "\uE287", 
-			"\uE288", "\uE289", "\uE28A", "\uE28B", "\uE28C", "\uE28D", "\uE28E", "\uE28F", 
-			"\uE290", "\uE291", "\uE292", "\uE293", "\uE294", "\uE295", "\uE296", "\uE297", 
-			"\uE298", "\uE299", "\uE29A", "\uE29B", "\uE29C", "\uE29D", "\uE29E", "\uE29F", 
-			"\uE2A0", "\uE2A1", "\uE2A2", "\uE2A3", "\uE2A4", "\uE2A5", "\uE2A6", "\uE2A7", 
-			"\uE2A8", "\uE2A9", "\uE2AA", "\uE2AB", "\uE2AC", "\uE2AD", "\uE2AE", "\uE2AF", 
-			"\uE2B0", "\uE2B1", "\uE2B2", "\uE2B3", "\uE2B4", "\uE2B5", "\uE2B6", "\uE2B7", 
-			"\uE2B8", "\uE2B9", "\uE2BA", "\uE2BB", "\uE2BC", "\uE2BD", "\uE2BE", "\uE2BF", 
-			"\uE2C0", "\uE2C1", "\uE2C2", "\uE2C3", "\uE2C4", "\uE2C5", "\uE2C6", "\uE2C7", 
-			"\uE2C8", "\uE2C9", "\uE2CA", "\uE2CB", "\uE2CC", "\uE2CD", "\uE2CE", "\uE2CF", 
-			"\uE2D0", "\uE2D1", "\uE2D2", "\uE2D3", "\uE2D4", "\uE2D5", "\uE2D6", "\uE2D7", 
-			"\uE2D8", "\uE2D9", "\uE2DA", "\uE2DB", "\uE2DC", "\uE2DD", "\uE2DE", "\uE2DF", 
-			"\uE2E0", "\uE2E1", "\uE2E2", "\uE2E3", "\uE2E4", "\uE2E5", "\uE2E6", "\uE2E7", 
-			"\uE2E8", "\uE2E9", "\uE2EA", "\uE2EB", "\uE2EC", "\uE2ED", "\uE2EE", "\uE2EF", 
-			"\uE2F0", "\uE2F1", "\uE2F2", "\uE2F3", "\uE2F4", "\uE2F5", "\uE2F6", "\uE2F7", 
-			"\uE2F8", "\uE2F9", "\uE2FA", "\uE2FB", "\uE2FC", "\uE2FD", "\uE2FE", "\uE2FF"
+			"\uE080", "\uE081", "\uE082", "\uE083", "\uE084", "\uE085", "\uE086", "\uE087", 
+			"\uE088", "\uE089", "\uE08A", "\uE08B", "\uE08C", "\uE08D", "\uE08E", "\uE08F", 
+			"\uE090", "\uE091", "\uE092", "\uE093", "\uE094", "\uE095", "\uE096", "\uE097", 
+			"\uE098", "\uE099", "\uE09A", "\uE09B", "\uE09C", "\uE09D", "\uE09E", "\uE09F", 
+			"\uE0A0", "\uE0A1", "\uE0A2", "\uE0A3", "\uE0A4", "\uE0A5", "\uE0A6", "\uE0A7", 
+			"\uE0A8", "\uE0A9", "\uE0AA", "\uE0AB", "\uE0AC", "\uE0AD", "\uE0AE", "\uE0AF", 
+			"\uE0B0", "\uE0B1", "\uE0B2", "\uE0B3", "\uE0B4", "\uE0B5", "\uE0B6", "\uE0B7", 
+			"\uE0B8", "\uE0B9", "\uE0BA", "\uE0BB", "\uE0BC", "\uE0BD", "\uE0BE", "\uE0BF", 
+			"\uE0C0", "\uE0C1", "\uE0C2", "\uE0C3", "\uE0C4", "\uE0C5", "\uE0C6", "\uE0C7", 
+			"\uE0C8", "\uE0C9", "\uE0CA", "\uE0CB", "\uE0CC", "\uE0CD", "\uE0CE", "\uE0CF", 
+			"\uE0D0", "\uE0D1", "\uE0D2", "\uE0D3", "\uE0D4", "\uE0D5", "\uE0D6", "\uE0D7", 
+			"\uE0D8", "\uE0D9", "\uE0DA", "\uE0DB", "\uE0DC", "\uE0DD", "\uE0DE", "\uE0DF", 
+			"\uE0E0", "\uE0E1", "\uE0E2", "\uE0E3", "\uE0E4", "\uE0E5", "\uE0E6", "\uE0E7", 
+			"\uE0E8", "\uE0E9", "\uE0EA", "\uE0EB", "\uE0EC", "\uE0ED", "\uE0EE", "\uE0EF", 
+			"\uE0F0", "\uE0F1", "\uE0F2", "\uE0F3", "\uE0F4", "\uE0F5", "\uE0F6", "\uE0F7", 
+			"\uE0F8", "\uE0F9", "\uE0FA", "\uE0FB", "\uE0FC", "\uE0FD", "\uE0FE", "\uE0FF"
 
 
 		};

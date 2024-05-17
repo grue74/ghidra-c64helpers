@@ -122,22 +122,22 @@ import java.util.Arrays;
 			"\uEFF8", "\uEFF9", "\uEFFA", "\uEFFB", "\uEFFC", "\uEFFD", "\uEFFE", "\uEFFF"
 */
 // Mapping for Pet Me font
-			"\uE380", "\uE381", "\uE382", "\uE383", "\uE384", "\uE385", "\uE386", "\uE387", 
-			"\uE388", "\uE389", "\uE38A", "\uE38B", "\uE38C", "\uE38D", "\uE38E", "\uE38F", 
-			"\uE390", "\uE391", "\uE392", "\uE393", "\uE394", "\uE395", "\uE396", "\uE397", 
-			"\uE398", "\uE399", "\uE39A", "\uE39B", "\uE39C", "\uE39D", "\uE39E", "\uE39F", 
-			"\uE3A0", "\uE3A1", "\uE3A2", "\uE3A3", "\uE3A4", "\uE3A5", "\uE3A6", "\uE3A7", 
-			"\uE3A8", "\uE3A9", "\uE3AA", "\uE3AB", "\uE3AC", "\uE3AD", "\uE3AE", "\uE3AF", 
-			"\uE3B0", "\uE3B1", "\uE3B2", "\uE3B3", "\uE3B4", "\uE3B5", "\uE3B6", "\uE3B7", 
-			"\uE3B8", "\uE3B9", "\uE3BA", "\uE3BB", "\uE3BC", "\uE3BD", "\uE3BE", "\uE3BF", 
-			"\uE3C0", "\uE3C1", "\uE3C2", "\uE3C3", "\uE3C4", "\uE3C5", "\uE3C6", "\uE3C7", 
-			"\uE3C8", "\uE3C9", "\uE3CA", "\uE3CB", "\uE3CC", "\uE3CD", "\uE3CE", "\uE3CF", 
-			"\uE3D0", "\uE3D1", "\uE3D2", "\uE3D3", "\uE3D4", "\uE3D5", "\uE3D6", "\uE3D7", 
-			"\uE3D8", "\uE3D9", "\uE3DA", "\uE3DB", "\uE3DC", "\uE3DD", "\uE3DE", "\uE3DF", 
-			"\uE3E0", "\uE3E1", "\uE3E2", "\uE3E3", "\uE3E4", "\uE3E5", "\uE3E6", "\uE3E7", 
-			"\uE3E8", "\uE3E9", "\uE3EA", "\uE3EB", "\uE3EC", "\uE3ED", "\uE3EE", "\uE3EF", 
-			"\uE3F0", "\uE3F1", "\uE3F2", "\uE3F3", "\uE3F4", "\uE3F5", "\uE3F6", "\uE3F7", 
-			"\uE3F8", "\uE3F9", "\uE3FA", "\uE3FB", "\uE3FC", "\uE3FD", "\uE3FE", "\uE3FF"
+			"\uE180", "\uE181", "\uE182", "\uE183", "\uE184", "\uE185", "\uE186", "\uE187", 
+			"\uE188", "\uE189", "\uE18A", "\uE18B", "\uE18C", "\uE18D", "\uE18E", "\uE18F", 
+			"\uE190", "\uE191", "\uE192", "\uE193", "\uE194", "\uE195", "\uE196", "\uE197", 
+			"\uE198", "\uE199", "\uE19A", "\uE19B", "\uE19C", "\uE19D", "\uE19E", "\uE19F", 
+			"\uE1A0", "\uE1A1", "\uE1A2", "\uE1A3", "\uE1A4", "\uE1A5", "\uE1A6", "\uE1A7", 
+			"\uE1A8", "\uE1A9", "\uE1AA", "\uE1AB", "\uE1AC", "\uE1AD", "\uE1AE", "\uE1AF", 
+			"\uE1B0", "\uE1B1", "\uE1B2", "\uE1B3", "\uE1B4", "\uE1B5", "\uE1B6", "\uE1B7", 
+			"\uE1B8", "\uE1B9", "\uE1BA", "\uE1BB", "\uE1BC", "\uE1BD", "\uE1BE", "\uE1BF", 
+			"\uE1C0", "\uE1C1", "\uE1C2", "\uE1C3", "\uE1C4", "\uE1C5", "\uE1C6", "\uE1C7", 
+			"\uE1C8", "\uE1C9", "\uE1CA", "\uE1CB", "\uE1CC", "\uE1CD", "\uE1CE", "\uE1CF", 
+			"\uE1D0", "\uE1D1", "\uE1D2", "\uE1D3", "\uE1D4", "\uE1D5", "\uE1D6", "\uE1D7", 
+			"\uE1D8", "\uE1D9", "\uE1DA", "\uE1DB", "\uE1DC", "\uE1DD", "\uE1DE", "\uE1DF", 
+			"\uE1E0", "\uE1E1", "\uE1E2", "\uE1E3", "\uE1E4", "\uE1E5", "\uE1E6", "\uE1E7", 
+			"\uE1E8", "\uE1E9", "\uE1EA", "\uE1EB", "\uE1EC", "\uE1ED", "\uE1EE", "\uE1EF", 
+			"\uE1F0", "\uE1F1", "\uE1F2", "\uE1F3", "\uE1F4", "\uE1F5", "\uE1F6", "\uE1F7", 
+			"\uE1F8", "\uE1F9", "\uE1FA", "\uE1FB", "\uE1FC", "\uE1FD", "\uE1FE", "\uE1FF"
 		};
 
 		byte b = block.getByte(index);
