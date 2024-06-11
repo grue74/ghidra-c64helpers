@@ -44,8 +44,16 @@ public class MDQualifier extends MDParsableItem {
 		return (nameNested != null);
 	}
 
+	public boolean isAnon() {
+		return (nameAnonymous != null);
+	}
+
 	public MDNestedName getNested() {
 		return nameNested;
+	}
+
+	public String getAnonymousName() {
+		return nameAnonymous.getName();
 	}
 
 	@Override
