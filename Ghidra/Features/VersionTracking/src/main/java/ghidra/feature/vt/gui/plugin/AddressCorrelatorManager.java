@@ -100,7 +100,6 @@ public class AddressCorrelatorManager {
 	}
 
 	private AddressCorrelation getFunctionCorrelator(Function source, Function destination) {
-
 		for (AddressCorrelator correlator : correlatorList) {
 			AddressCorrelation correlation = correlator.correlate(source, destination);
 			if (correlation != null) {
