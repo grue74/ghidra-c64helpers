@@ -391,8 +391,9 @@ public class TraceRmiTarget extends AbstractTarget {
 			boolean allowSuitableObject) {
 		Map<String, ActionEntry> result = new HashMap<>();
 		for (RemoteMethod m : methods) {
-			result.put(m.name(), createEntry(m, context, allowContextObject, allowCoordsObject,
-				allowSuitableObject));
+			ActionEntry entry = createEntry(m, context, allowContextObject, allowCoordsObject,
+				allowSuitableObject);
+			result.put(m.name(), entry);
 		}
 		return result;
 	}
@@ -809,12 +810,14 @@ public class TraceRmiTarget extends AbstractTarget {
 
 		public MatchedMethod getBest(String name, ActionName action,
 				Supplier<List<? extends MethodMatcher>> preferredSupplier) {
-			return map.computeIfAbsent(name, n -> chooseBest(action, preferredSupplier.get()));
+			return getBest(name, action, preferredSupplier.get());
 		}
 
 		public MatchedMethod getBest(String name, ActionName action,
 				List<? extends MethodMatcher> preferred) {
-			return map.computeIfAbsent(name, n -> chooseBest(action, preferred));
+			synchronized (map) {
+				return map.computeIfAbsent(name, n -> chooseBest(action, preferred));
+			}
 		}
 
 		private MatchedMethod chooseBest(ActionName name, List<? extends MethodMatcher> preferred) {

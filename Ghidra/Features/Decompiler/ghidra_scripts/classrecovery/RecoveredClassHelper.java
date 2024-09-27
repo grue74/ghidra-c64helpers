@@ -404,12 +404,15 @@ public class RecoveredClassHelper {
 	 * @param function the given function
 	 * @param getThunkedFunction if true, use the thunked function in the map, if false use the 
 	 * directly called function from the calling function even if it is a thunk
+	 * @param visited the set of function entry point addresses already processed
 	 * @return a map of the given functions calling addresses to the called functions 
 	 * @throws CancelledException if cancelled
 	 */
-	public Map<Address, Function> getFunctionCallMap(Function function, boolean getThunkedFunction)
+	public Map<Address, Function> getFunctionCallMap(Function function, boolean getThunkedFunction,
+			Set<Address> visited)
 			throws CancelledException {
 
+		visited.add(function.getEntryPoint());
 		Map<Address, Function> functionCallMap = new HashMap<Address, Function>();
 
 		InstructionIterator instructions =
@@ -435,9 +438,10 @@ public class RecoveredClassHelper {
 				Address functionAddress = reference.getFromAddress();
 				Function secondHalfOfFunction =
 					extendedFlatAPI.getReferencedFunction(functionAddress);
-				if (secondHalfOfFunction != null) {
+				if (secondHalfOfFunction != null &&
+					!visited.contains(secondHalfOfFunction.getEntryPoint())) {
 					Map<Address, Function> functionCallMap2 =
-						getFunctionCallMap(secondHalfOfFunction, false);
+						getFunctionCallMap(secondHalfOfFunction, false, visited);
 					for (Address addr : functionCallMap2.keySet()) {
 						monitor.checkCancelled();
 						functionCallMap.put(addr, functionCallMap2.get(addr));
@@ -447,6 +451,11 @@ public class RecoveredClassHelper {
 			}
 		}
 		return functionCallMap;
+	}
+
+	public Map<Address, Function> getFunctionCallMap(Function function, boolean getThunkedFunction)
+			throws CancelledException {
+		return getFunctionCallMap(function, getThunkedFunction, new HashSet<>());
 	}
 
 	public void updateNamespaceToClassMap(Namespace namespace, RecoveredClass recoveredClass) {
@@ -4518,10 +4527,106 @@ public class RecoveredClassHelper {
 			// apply the structure. It has to be one or the other and the correct length
 			// because of the check at the beginning of the script that checked for either
 			// array or structure of pointers and got size from them initially
-			api.clearListing(vftableAddress);
+			api.clearListing(vftableAddress, vftableAddress.add(vftableStruct.getLength() - 1));
 			api.createData(vftableAddress, vftableStruct);
 
 		}
+	}
+
+	/**
+	 * Method to fixup the function definitions corresponding to purecalls from vftables after
+	 * all the child classes have been updated. This is because the function defintions for these
+	 * abstract function definitions are generated based on the child function signatures which
+	 * are not updated at the time the parent class structures are created.
+	 * @throws CancelledException if cancelled
+	 */
+	protected void fixupPurecallFunctionDefs() throws CancelledException {
+
+		// do nothing if no purecall 
+		if (purecall == null) {
+			return;
+		}
+
+		List<Address> processedVftables = new ArrayList<Address>();
+
+		// get references to purecall function to figure out which classes to process
+		ReferenceIterator purecallRefs =
+			program.getReferenceManager().getReferencesTo(purecall.getEntryPoint());
+
+		while (purecallRefs.hasNext()) {
+			monitor.checkCancelled();
+
+			Reference purecallRef = purecallRefs.next();
+			Address fromAddress = purecallRef.getFromAddress();
+
+			// get data containing the purecall reference to get the vftable structure
+			Data data = program.getListing().getDataContaining(fromAddress);
+
+			// skip if not a data ref
+			if (data == null) {
+				continue;
+			}
+
+			DataType dataType = data.getDataType();
+
+			// skip if not ref'd by a vftable
+			if (!dataType.getName().contains("vftable")) {
+				continue;
+			}
+
+			Address vftableAddress = data.getMinAddress();
+
+			// skip - already processed this whole table
+			if (processedVftables.contains(vftableAddress)) {
+				continue;
+			}
+
+			RecoveredClass recoveredClass = vftableToClassMap.get(vftableAddress);
+
+			// use the vftable structure fields to figure out which vfunctions in that vftable are 
+			// purecalls and to also get the vfunction function definition data type
+			Structure vftableStructure = (Structure) dataType;
+			int vfunctionNumber = 1;
+			for (DataTypeComponent component : vftableStructure.getComponents()) {
+				monitor.checkCancelled();
+				if (component.getComment().contains("pure")) {
+					// get an associated child vfunction signure to update the parent's function definition
+					Function childVirtualFunction =
+						getChildVirtualFunction(recoveredClass, vfunctionNumber);
+
+					if (childVirtualFunction == null) {
+						Msg.debug(this, "Cannot get associated vfunction " + vfunctionNumber);
+						continue;
+					}
+
+					// get the function definition from the child vfunction
+					FunctionDefinitionDataType newDef =
+						new FunctionDefinitionDataType(childVirtualFunction, false);
+
+					// update the this param to replace class struct with void so that the 
+					// definition is generic thiscall
+					ParameterDefinition[] arguments = newDef.getArguments();
+
+					PointerDataType voidPtrDt = new PointerDataType(VoidDataType.dataType);
+					arguments[0].setDataType(voidPtrDt);
+
+					// use it to reset the parent's associated abstract(pure) function definition 
+					Pointer functionDefPtr = (Pointer) component.getDataType();
+
+					FunctionDefinition functionDef =
+						(FunctionDefinition) functionDefPtr.getDataType();
+
+					functionDef.setArguments(arguments);
+					functionDef.setReturnType(newDef.getReturnType());
+
+				}
+				vfunctionNumber++;
+			}
+
+			processedVftables.add(vftableAddress);
+
+		}
+
 	}
 
 	/**
