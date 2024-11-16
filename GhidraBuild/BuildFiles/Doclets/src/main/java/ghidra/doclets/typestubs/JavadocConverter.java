@@ -308,7 +308,7 @@ public class JavadocConverter extends DocConverter {
 	 * @return the converted tag
 	 */
 	private String convertSinceTag(Element el, SinceTree since) {
-		// NOTE: there must be a preceeding new line
+		// NOTE: there must be a preceding new line
 		String msg = convertTree(el, since.getBody());
 		return "\n.. versionadded:: " + msg + '\n';
 	}
@@ -553,7 +553,7 @@ public class JavadocConverter extends DocConverter {
 	private static String sanitizeQualifiedName(ExecutableElement el, TypeMirror type) {
 		Element self = el.getEnclosingElement();
 		PackageElement pkg = PythonTypeStubElement.getPackage(self);
-		return PythonTypeStubElement.sanitizeQualifiedName(self, type, pkg);
+		return PythonTypeStubElement.sanitizeQualifiedName(type, pkg);
 	}
 
 	/**
