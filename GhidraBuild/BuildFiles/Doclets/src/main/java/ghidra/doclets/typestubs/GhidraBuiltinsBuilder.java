@@ -15,20 +15,10 @@
  */
 package ghidra.doclets.typestubs;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Set;
+import java.io.*;
+import java.util.*;
 
-import javax.lang.model.element.PackageElement;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
+import javax.lang.model.element.*;
 import javax.lang.model.util.Elements;
 
 /**
@@ -61,6 +51,16 @@ class GhidraBuiltinsBuilder {
 		root.mkdirs();
 		File stub = new File(root, "__init__.pyi");
 		try (PrintWriter printer = new PrintWriter(new FileWriter(stub))) {
+			process(printer);
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		File pypredefDir = new File(doclet.getDestDir().getParentFile(), "pypredef");
+		File pypredefFile = new File(pypredefDir, "ghidra.ghidra_builtins.pypredef");
+		pypredefDir.mkdirs();
+		try (PrintWriter printer = new PrintWriter(new FileWriter(pypredefFile))) {
 			process(printer);
 		}
 		catch (IOException e) {
@@ -143,8 +143,8 @@ class GhidraBuiltinsBuilder {
 	 */
 	private void printMethods(PrintWriter printer, Set<String> exports) {
 		// methods must be sorted by name for typing.overload
-		List<PythonTypeStubMethod> apiMethods = api.getMethods(true, true);
-		List<PythonTypeStubMethod> scriptMethods = script.getMethods(true, true);
+		List<PythonTypeStubMethod> apiMethods = filter(api.getMethods(true, true));
+		List<PythonTypeStubMethod> scriptMethods = filter(script.getMethods(true, true));
 
 		int length = apiMethods.size() + scriptMethods.size();
 		List<PythonTypeStubMethod> methods = new ArrayList<>(length);
@@ -232,5 +232,19 @@ class GhidraBuiltinsBuilder {
 		TypeElement type = elements.getTypeElement(name);
 		PackageElement pkg = (PackageElement) type.getEnclosingElement();
 		return new PythonTypeStubType(new PythonTypeStubPackage(doclet, pkg), type);
+	}
+
+	/**
+	 * Filters out methods that should not be considered for type generation.
+	 * <p>
+	 * One use case of this is to prevent Ghidra methods from overriding built-in Python methods
+	 * that have a higher precedence.
+	 * 
+	 * @param methods The methods to filter
+	 * @return A new {@link List} of filtered methods
+	 */
+	private List<PythonTypeStubMethod> filter(List<PythonTypeStubMethod> methods) {
+		final Set<String> EXCLUDES = Set.of("set");
+		return methods.stream().filter(m -> !EXCLUDES.contains(m.getName())).toList();
 	}
 }

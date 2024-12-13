@@ -2443,7 +2443,7 @@ public class RecoveredClassHelper {
 	/**
 	 * Method to return the total number of vbase destructors in the given list of classes
 	 * @param recoveredClasses the list of classes
-	 * @return the the total number of vbase destructors in the given list of classes
+	 * @return the total number of vbase destructors in the given list of classes
 	 * @throws CancelledException if cancelled
 	 */
 	public int getNumberOfVBaseFunctions(List<RecoveredClass> recoveredClasses)
@@ -2562,7 +2562,11 @@ public class RecoveredClassHelper {
 				Function function = functionIterator.next();
 				Namespace namespace = function.getParentNamespace();
 				if (!namespace.equals(recoveredClass.getClassNamespace())) {
-					continue;
+					Symbol functionSymbol = function.getSymbol();
+					if (functionSymbol.getSource().equals(SourceType.IMPORTED)) {
+						functionIterator.remove(); // remove named functions belonging to other class
+					}
+					continue; // continue in either case to skip functions in other namespaces
 				}
 				String name = function.getName();
 				if (name.equals(recoveredClass.getName())) {
@@ -6140,7 +6144,7 @@ public class RecoveredClassHelper {
 				}
 
 				// if one or more is a constructor and none are destructors then the indeterminate
-				// inline is is an inlined constructor
+				// inline is an inlined constructor
 				if (isConstructor == true && isDestructor == false) {
 					processInlineConstructor(recoveredClass, inlineFunction, referenceToClassMap);
 				}
@@ -8465,7 +8469,8 @@ public class RecoveredClassHelper {
 			Symbol symbol = symbols.next();
 			if (symbol.getName().equals("vftable") ||
 				symbol.getName().substring(1).startsWith("vftable") ||
-				symbol.getName().contains("vftable_for_")) {
+				symbol.getName().contains("vftable_for_") ||
+				symbol.getName().contains("vftable{for")) {
 				vftableSymbols.add(symbol);
 			}
 

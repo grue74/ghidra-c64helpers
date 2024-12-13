@@ -114,7 +114,7 @@ public record AttributeId(String name, int id) {
 	public static final AttributeId ATTRIB_ARRAYSIZE = new AttributeId("arraysize", 48);
 	public static final AttributeId ATTRIB_CHAR = new AttributeId("char", 49);
 	public static final AttributeId ATTRIB_CORE = new AttributeId("core", 50);
-	public static final AttributeId ATTRIB_ENUM = new AttributeId("enum", 51);
+//	public static final AttributeId ATTRIB_ENUM = new AttributeId("enum", 51);	// deprecated
 	public static final AttributeId ATTRIB_INCOMPLETE = new AttributeId("incomplete", 52);
 //	public static final AttributeId ATTRIB_ENUMSIZE = new AttributeId("enumsize", 53);  // deprecated
 //	public static final AttributeId ATTRIB_INTSIZE = new AttributeId("intsize", 54);  // deprecated
@@ -242,6 +242,7 @@ public record AttributeId(String name, int id) {
 
 // public static final AttributeId ATTRIB_ADDRESS = new AttributeId("address", 148);
 	public static final AttributeId ATTRIB_STORAGE = new AttributeId("storage", 149);
+	public static final AttributeId ATTRIB_STACKSPILL = new AttributeId("stackspill", 150);
 
-	public static final AttributeId ATTRIB_UNKNOWN = new AttributeId("XMLunknown", 150);
+	public static final AttributeId ATTRIB_UNKNOWN = new AttributeId("XMLunknown", 151);
 }

@@ -5472,6 +5472,8 @@ void ActionDatabase::universalAction(Architecture *conf)
 	actprop->addRule( new RuleSlessToLess("analysis") );
 	actprop->addRule( new RuleZextSless("analysis") );
 	actprop->addRule( new RuleBitUndistribute("analysis") );
+	actprop->addRule( new RuleBooleanUndistribute("analysis") );
+	actprop->addRule( new RuleBooleanDedup("analysis") );
 	actprop->addRule( new RuleBoolZext("analysis") );
 	actprop->addRule( new RuleBooleanNegate("analysis") );
 	actprop->addRule( new RuleLogic2Bool("analysis") );
@@ -5600,6 +5602,7 @@ void ActionDatabase::universalAction(Architecture *conf)
     actcleanup->addRule( new Rule2Comp2Sub("cleanup") );
     actcleanup->addRule( new RuleSubRight("cleanup") );
     actcleanup->addRule( new RuleFloatSignCleanup("cleanup") );
+    actcleanup->addRule( new RuleExpandLoad("cleanup") );
     actcleanup->addRule( new RulePtrsubCharConstant("cleanup") );
     actcleanup->addRule( new RuleExtensionPush("cleanup") );
     actcleanup->addRule( new RulePieceStructure("cleanup") );
