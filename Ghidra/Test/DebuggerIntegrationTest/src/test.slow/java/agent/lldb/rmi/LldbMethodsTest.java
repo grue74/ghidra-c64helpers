@@ -29,13 +29,11 @@ import org.junit.experimental.categories.Category;
 import generic.Unique;
 import generic.test.category.NightlyCategory;
 import ghidra.app.plugin.core.debug.utils.ManagedDomainObject;
-import ghidra.dbg.testutil.DummyProc;
-import ghidra.dbg.util.PathPattern;
-import ghidra.dbg.util.PathPredicates;
 import ghidra.debug.api.tracermi.RemoteMethod;
 import ghidra.framework.OperatingSystem;
 import ghidra.program.model.address.*;
 import ghidra.program.model.lang.RegisterValue;
+import ghidra.pty.testutil.DummyProc;
 import ghidra.trace.database.ToyDBTraceBuilder;
 import ghidra.trace.model.Lifespan;
 import ghidra.trace.model.Trace;
@@ -45,6 +43,8 @@ import ghidra.trace.model.memory.TraceMemorySpace;
 import ghidra.trace.model.modules.TraceModule;
 import ghidra.trace.model.target.TraceObject;
 import ghidra.trace.model.target.TraceObjectValue;
+import ghidra.trace.model.target.path.PathFilter;
+import ghidra.trace.model.target.path.PathPattern;
 
 @Category(NightlyCategory.class) // this may actually be an @PortSensitive test
 public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
@@ -85,49 +85,10 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				// Would be nice to control / validate the specifics
 				List<TraceObject> list = tb.trace.getObjectManager()
-						.getValuePaths(Lifespan.at(0), PathPredicates.parse("Available[]"))
+						.getValuePaths(Lifespan.at(0), PathFilter.parse("Available[]"))
 						.map(p -> p.getDestination(null))
 						.toList();
 				assertThat(list.size(), greaterThan(2));
-			}
-		}
-	}
-
-	@Test
-	public void testRefreshBreakpoints() throws Exception {
-		try (LldbAndConnection conn = startAndConnectLldb()) {
-			start(conn, getSpecimenPrint());
-			txPut(conn, "processes");
-
-			RemoteMethod refreshBreakpoints = conn.getMethod("refresh_breakpoints");
-			try (ManagedDomainObject mdo = openDomainObject("/New Traces/lldb/expPrint")) {
-				tb = new ToyDBTraceBuilder((Trace) mdo.get());
-				//waitStopped(conn);
-
-				conn.execute("breakpoint set --name main");
-				conn.execute("breakpoint set -H --name main");
-				txPut(conn, "breakpoints");
-				TraceObject breakpoints = Objects.requireNonNull(tb.objAny0("Breakpoints"));
-				refreshBreakpoints.invoke(Map.of("node", breakpoints));
-
-				List<TraceObjectValue> procBreakLocVals = tb.trace.getObjectManager()
-						.getValuePaths(Lifespan.at(0),
-							PathPredicates.parse("Processes[].Breakpoints[]"))
-						.map(p -> p.getLastEntry())
-						.sorted(Comparator.comparing(TraceObjectValue::getEntryKey))
-						.toList();
-				assertEquals(2, procBreakLocVals.size());
-				AddressRange rangeMain =
-					procBreakLocVals.get(0).getChild().getValue(0, "_range").castValue();
-				Address main = rangeMain.getMinAddress();
-
-				// The temporary breakpoint uses up number 1
-				assertBreakLoc(procBreakLocVals.get(0), "[1.1]", main, 1,
-					Set.of(TraceBreakpointKind.SW_EXECUTE),
-					"main");
-				assertBreakLoc(procBreakLocVals.get(1), "[2.1]", main, 1,
-					Set.of(TraceBreakpointKind.HW_EXECUTE),
-					"main");
 			}
 		}
 	}
@@ -152,19 +113,19 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				List<TraceObjectValue> procBreakLocVals = tb.trace.getObjectManager()
 						.getValuePaths(Lifespan.at(0),
-							PathPredicates.parse("Processes[].Breakpoints[]"))
+							PathFilter.parse("Processes[].Breakpoints[][]"))
 						.map(p -> p.getLastEntry())
-						.sorted(Comparator.comparing(TraceObjectValue::getEntryKey))
+						.sorted(Comparator.comparing(TraceObjectValue::getCanonicalPath))
 						.toList();
 				assertEquals(2, procBreakLocVals.size());
 				AddressRange rangeMain =
 					procBreakLocVals.get(0).getChild().getValue(0, "_range").castValue();
 				Address main = rangeMain.getMinAddress();
 
-				assertBreakLoc(procBreakLocVals.get(0), "[1.1]", main, 1,
+				assertBreakLoc(procBreakLocVals.get(0), "[1]", main, 1,
 					Set.of(TraceBreakpointKind.SW_EXECUTE),
 					"main");
-				assertBreakLoc(procBreakLocVals.get(1), "[2.1]", main, 1,
+				assertBreakLoc(procBreakLocVals.get(1), "[1]", main, 1,
 					Set.of(TraceBreakpointKind.HW_EXECUTE),
 					"main");
 			}
@@ -192,7 +153,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				List<TraceObjectValue> procWatchLocVals = tb.trace.getObjectManager()
 						.getValuePaths(Lifespan.at(0),
-							PathPredicates.parse("Processes[].Watchpoints[]"))
+							PathFilter.parse("Processes[].Watchpoints[]"))
 						.map(p -> p.getLastEntry())
 						.sorted(Comparator.comparing(TraceObjectValue::getEntryKey))
 						.toList();
@@ -236,7 +197,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				// Would be nice to control / validate the specifics
 				List<TraceObject> list = tb.trace.getObjectManager()
-						.getValuePaths(Lifespan.at(0), PathPredicates.parse("Processes[]"))
+						.getValuePaths(Lifespan.at(0), PathFilter.parse("Processes[]"))
 						.map(p -> p.getDestination(null))
 						.toList();
 				assertEquals(1, list.size());
@@ -308,7 +269,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 				// Would be nice to control / validate the specifics
 				List<TraceObject> list = tb.trace.getObjectManager()
 						.getValuePaths(Lifespan.at(0),
-							PathPredicates.parse("Processes[].Threads[].Stack[]"))
+							PathFilter.parse("Processes[].Threads[].Stack[]"))
 						.map(p -> p.getDestination(null))
 						.toList();
 				assertTrue(list.size() > 1);
@@ -411,7 +372,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 				txPut(conn, "threads");
 
 				PathPattern pattern =
-					PathPredicates.parse("Processes[].Threads[]").getSingletonPattern();
+					PathFilter.parse("Processes[].Threads[]").getSingletonPattern();
 				List<TraceObject> list = tb.trace.getObjectManager()
 						.getValuePaths(Lifespan.at(0), pattern)
 						.map(p -> p.getDestination(null))
@@ -421,7 +382,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 				for (TraceObject t : list) {
 					activateThread.invoke(Map.of("thread", t));
 					String out = conn.executeCapture("thread info");
-					List<String> indices = pattern.matchKeys(t.getCanonicalPath().getKeyList());
+					List<String> indices = pattern.matchKeys(t.getCanonicalPath(), true);
 					long index = Long.decode(indices.get(1));
 					assertThat(out, Matchers
 							.either(containsString("tid = %s".formatted(index)))
@@ -449,7 +410,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				List<TraceObject> list = tb.trace.getObjectManager()
 						.getValuePaths(Lifespan.at(0),
-							PathPredicates.parse("Processes[].Threads[].Stack[]"))
+							PathFilter.parse("Processes[].Threads[].Stack[]"))
 						.map(p -> p.getDestination(null))
 						.toList();
 				//assertThat(list.size(), greaterThan(2));
@@ -1063,7 +1024,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				conn.execute("breakpoint set -n main");
 				txPut(conn, "breakpoints");
-				TraceObject bpt = Objects.requireNonNull(tb.objAny0("Breakpoints[]"));
+				TraceObject bpt = Objects.requireNonNull(tb.objAny0("Processes[].Breakpoints[]"));
 
 				toggleBreakpoint.invoke(Map.of("breakpoint", bpt, "enabled", false));
 
@@ -1087,7 +1048,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 				conn.execute("breakpoint set -n main");
 				txPut(conn, "breakpoints");
 
-				TraceObject loc = Objects.requireNonNull(tb.objAny0("Breakpoints[][]"));
+				TraceObject loc = Objects.requireNonNull(tb.objAny0("Processes[].Breakpoints[][]"));
 
 				toggleBreakpointLocation.invoke(Map.of("location", loc, "enabled", false));
 
@@ -1110,7 +1071,7 @@ public class LldbMethodsTest extends AbstractLldbTraceRmiTest {
 
 				conn.execute("breakpoint set -n main");
 				txPut(conn, "breakpoints");
-				TraceObject bpt = Objects.requireNonNull(tb.objAny0("Breakpoints[]"));
+				TraceObject bpt = Objects.requireNonNull(tb.objAny0("Processes[].Breakpoints[]"));
 
 				deleteBreakpoint.invoke(Map.of("breakpoint", bpt));
 

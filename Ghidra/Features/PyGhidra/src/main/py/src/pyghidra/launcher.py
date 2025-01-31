@@ -109,6 +109,17 @@ class _PyGhidraImportLoader:
     def exec_module(self, fullname):
         pass
 
+class _GhidraBundleFinder(importlib.machinery.PathFinder):
+    """ (internal) Used to find modules in Ghidra bundle locations """
+    
+    def find_spec(self, fullname, path=None, target=None):
+        from ghidra.app.script import GhidraScriptUtil
+        GhidraScriptUtil.acquireBundleHostReference()
+        for directory in GhidraScriptUtil.getEnabledScriptSourceDirectories():
+            spec = super().find_spec(fullname, [directory.absolutePath], target)
+            if spec is not None:
+                return spec
+        return None
 
 @contextlib.contextmanager
 def _plugin_lock():
@@ -160,11 +171,14 @@ class PyGhidraLauncher:
         install_dir = install_dir or os.getenv("GHIDRA_INSTALL_DIR")
         self._install_dir = self._validate_install_dir(install_dir)
 
+        java_home_override = os.getenv("JAVA_HOME_OVERRIDE")
+        if java_home_override:
+            self._java_home = java_home_override
+
         # check if we are in the ghidra source tree
         support = Path(install_dir) / "support"
         if not support.exists():
             self._dev_mode = True
-            self._java_home = os.getenv("JAVA_HOME_OVERRIDE")
 
         self._plugins: List[Tuple[Path, ExtensionDetails]] = []
         self.verbose = verbose
@@ -374,6 +388,10 @@ class PyGhidraLauncher:
 
         # set the JAVA_HOME environment variable to the correct one so jpype uses it
         os.environ['JAVA_HOME'] = str(self.java_home)
+        
+        # add bin dir to DLL search path to help address JPype 1.5.1 issue
+        if sys.platform == "win32":
+            os.add_dll_directory(str(self.java_home) + "/bin")
 
         jpype_kwargs['ignoreUnrecognized'] = True
 
@@ -387,8 +405,9 @@ class PyGhidraLauncher:
             **jpype_kwargs
         )
 
-        # Install hook into python importlib
+        # Install hooks into python importlib
         sys.meta_path.append(_PyGhidraImportLoader())
+        sys.meta_path.append(_GhidraBundleFinder())
 
         imports.registerDomain("ghidra")
 
@@ -469,7 +488,7 @@ class PyGhidraLauncher:
                 self._pre_launch_init()
             self._launch()
         except Exception as e:
-            self._report_fatal_error("An error occured launching Ghidra", str(e), e)
+            self._report_fatal_error("An error occurred launching Ghidra", str(e), e)
 
     def get_install_path(self, plugin_name: str) -> Path:
         """

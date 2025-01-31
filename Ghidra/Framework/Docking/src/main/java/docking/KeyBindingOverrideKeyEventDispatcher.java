@@ -25,8 +25,7 @@ import java.util.List;
 import javax.swing.*;
 import javax.swing.text.JTextComponent;
 
-import docking.action.DockingActionIf;
-import docking.action.MultipleKeyAction;
+import docking.action.*;
 import docking.actions.KeyBindingUtils;
 import docking.menu.keys.MenuKeyProcessor;
 import ghidra.util.bean.GGlassPane;
@@ -246,12 +245,22 @@ public class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher 
 			return false; // no actions; not a valid key stroke for this dialog
 		}
 		for (DockingActionIf action : actions) {
-			if (!provider.isDialogKeyBindingAction(action)) {
+			if (!isAllowedDialogAction(provider, action)) {
 				return false;
 			}
 		}
 
 		return true; // all actions belong to the active dialog; this is a valid action
+	}
+
+	private boolean isAllowedDialogAction(DialogComponentProvider provider,
+			DockingActionIf action) {
+
+		if (action instanceof ComponentBasedDockingAction) {
+			return true; // these actions work on low-level components, which may live in dialogs
+		}
+
+		return provider.isDialogKeyBindingAction(action);
 	}
 
 	private boolean isSettingKeyBindings(KeyEvent event) {
@@ -272,7 +281,7 @@ public class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher 
 			destination = focusOwner;
 		}
 
-		if (!(destination instanceof JTextComponent)) {
+		if (!(destination instanceof JTextComponent textComponent)) {
 			return false; // we only handle text components
 		}
 
@@ -290,7 +299,9 @@ public class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher 
 		// widgets register actions for Escape and then check for that action.
 		int code = event.getKeyCode();
 		if (code == KeyEvent.VK_ESCAPE) {
-			return false;
+			// Cell editors will process the Escape key, so let them have it.  Otherwise, allow the
+			// system to process the Escape key as, described above.
+			return isCellEditing(textComponent);
 		}
 
 		// We've made the executive decision to allow all keys to go through to the text component
@@ -301,7 +312,22 @@ public class KeyBindingOverrideKeyEventDispatcher implements KeyEventDispatcher 
 		}
 
 		// the key is modified; let it through if the component has a mapping for the key
-		return hasRegisteredKeyBinding((JTextComponent) destination, event);
+		return hasRegisteredKeyBinding(textComponent, event);
+	}
+
+	private boolean isCellEditing(JTextComponent c) {
+		Container parent = c.getParent();
+		while (parent != null) {
+			if (parent instanceof JTree tree) {
+				return tree.isEditing();
+			}
+			else if (parent instanceof JTable table) {
+				return table.isEditing();
+			}
+
+			parent = parent.getParent();
+		}
+		return false;
 	}
 
 	/**

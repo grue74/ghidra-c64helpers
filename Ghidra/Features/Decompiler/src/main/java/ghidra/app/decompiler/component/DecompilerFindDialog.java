@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,6 +15,7 @@
  */
 package ghidra.app.decompiler.component;
 
+import java.awt.Component;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,10 +27,10 @@ import docking.widgets.FindDialog;
 import docking.widgets.SearchLocation;
 import docking.widgets.button.GButton;
 import docking.widgets.fieldpanel.support.FieldLocation;
-import docking.widgets.table.AbstractDynamicTableColumnStub;
-import docking.widgets.table.TableColumnDescriptor;
+import docking.widgets.table.*;
 import ghidra.app.plugin.core.decompile.actions.DecompilerSearchLocation;
 import ghidra.app.plugin.core.decompile.actions.DecompilerSearcher;
+import ghidra.app.plugin.core.navigation.locationreferences.LocationReferenceContext;
 import ghidra.app.plugin.core.table.TableComponentProvider;
 import ghidra.app.util.HelpTopics;
 import ghidra.app.util.query.TableService;
@@ -43,11 +44,14 @@ import ghidra.util.Msg;
 import ghidra.util.datastruct.Accumulator;
 import ghidra.util.exception.CancelledException;
 import ghidra.util.table.*;
+import ghidra.util.table.column.AbstractGhidraColumnRenderer;
+import ghidra.util.table.column.GColumnRenderer;
 import ghidra.util.task.TaskMonitor;
 
 public class DecompilerFindDialog extends FindDialog {
 
 	private DecompilerPanel decompilerPanel;
+	private GButton showAllButton;
 
 	public DecompilerFindDialog(DecompilerPanel decompilerPanel) {
 		super("Decompiler Find Text", new DecompilerSearcher(decompilerPanel));
@@ -55,7 +59,7 @@ public class DecompilerFindDialog extends FindDialog {
 
 		setHelpLocation(new HelpLocation(HelpTopics.DECOMPILER, "ActionFind"));
 
-		GButton showAllButton = new GButton("Search All");
+		showAllButton = new GButton("Search All");
 		showAllButton.addActionListener(e -> showAll());
 
 		// move this button to the end
@@ -65,7 +69,16 @@ public class DecompilerFindDialog extends FindDialog {
 		addButton(dismissButton);
 	}
 
+	@Override
+	protected void enableButtons(boolean b) {
+		super.enableButtons(b);
+		showAllButton.setEnabled(b);
+	}
+
 	private void showAll() {
+
+		String searchText = getSearchText();
+
 		close();
 
 		DockingWindowManager dwm = DockingWindowManager.getActiveInstance();
@@ -78,7 +91,7 @@ public class DecompilerFindDialog extends FindDialog {
 			return;
 		}
 
-		List<SearchLocation> results = searcher.searchAll(getSearchText(), useRegex());
+		List<SearchLocation> results = searcher.searchAll(searchText, useRegex());
 		if (!results.isEmpty()) {
 			// save off searches that find results so users can reuse them later
 			storeSearchText(getSearchText());
@@ -88,7 +101,7 @@ public class DecompilerFindDialog extends FindDialog {
 		DecompilerFindResultsModel model = new DecompilerFindResultsModel(tool, program, results);
 
 		String title = "Decompiler Search '%s'".formatted(getSearchText());
-		String type = "Decompiler Search ";
+		String type = "Decompiler Search Results";
 		String subMenuName = "Search";
 		TableComponentProvider<DecompilerSearchLocation> provider =
 			tableService.showTable(title, type, model, subMenuName, null);
@@ -125,12 +138,6 @@ public class DecompilerFindDialog extends FindDialog {
 
 		// set the tab text to the short and descriptive search term
 		provider.setTabText("'%s'".formatted(getSearchText()));
-	}
-
-	@Override
-	protected void dialogClosed() {
-		// clear the search results when the dialog is closed
-		decompilerPanel.setSearchResults(null);
 	}
 
 //=================================================================================================
@@ -202,17 +209,56 @@ public class DecompilerFindDialog extends FindDialog {
 		}
 
 		private class ContextColumn
-				extends AbstractDynamicTableColumnStub<DecompilerSearchLocation, String> {
+				extends
+				AbstractDynamicTableColumnStub<DecompilerSearchLocation, LocationReferenceContext> {
+
+			private GColumnRenderer<LocationReferenceContext> renderer = new ContextCellRenderer();
 
 			@Override
-			public String getValue(DecompilerSearchLocation rowObject, Settings settings,
+			public LocationReferenceContext getValue(DecompilerSearchLocation rowObject,
+					Settings settings,
 					ServiceProvider sp) throws IllegalArgumentException {
-				return rowObject.getTextLine();
+
+				LocationReferenceContext context = rowObject.getContext();
+				return context;
+				// return rowObject.getTextLine();
 			}
 
 			@Override
 			public String getColumnName() {
 				return "Context";
+			}
+
+			@Override
+			public GColumnRenderer<LocationReferenceContext> getColumnRenderer() {
+				return renderer;
+			}
+
+			private class ContextCellRenderer
+					extends AbstractGhidraColumnRenderer<LocationReferenceContext> {
+
+				{
+					// the context uses html
+					setHTMLRenderingEnabled(true);
+				}
+
+				@Override
+				public Component getTableCellRendererComponent(GTableCellRenderingData data) {
+
+					// initialize
+					super.getTableCellRendererComponent(data);
+
+					DecompilerSearchLocation match = (DecompilerSearchLocation) data.getRowObject();
+					LocationReferenceContext context = match.getContext();
+					String text = context.getBoldMatchingText();
+					setText(text);
+					return this;
+				}
+
+				@Override
+				public String getFilterString(LocationReferenceContext context, Settings settings) {
+					return context.getPlainText();
+				}
 			}
 		}
 	}

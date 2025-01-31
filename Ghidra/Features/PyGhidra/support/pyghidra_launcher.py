@@ -84,7 +84,14 @@ def in_venv() -> bool:
     return sys.prefix != sys.base_prefix
 
 def is_externally_managed() -> bool:
-    marker: Path = Path(sysconfig.get_path('stdlib', sysconfig.get_default_scheme())) / 'EXTERNALLY-MANAGED'
+    get_default_scheme = 'get_default_scheme'
+    if hasattr(sysconfig, get_default_scheme):
+        # Python 3.10 and later
+        default_scheme = getattr(sysconfig, get_default_scheme)
+    else:
+        # Python 3.9
+        default_scheme = getattr(sysconfig, f'_{get_default_scheme}')
+    marker: Path = Path(sysconfig.get_path("stdlib", default_scheme())) / 'EXTERNALLY-MANAGED'
     return marker.is_file()
 
 def get_venv_exe(venv_dir: Path) -> List[str]:
@@ -207,7 +214,7 @@ def main() -> None:
             print('Run "gradle prepdev" and try again.')
             sys.exit(1)
         python_cmd = get_venv_exe(venv_dir)
-        print(f'Switchiing to Ghidra virtual environment: {venv_dir}')
+        print(f'Switching to Ghidra virtual environment: {venv_dir}')
     else:
         # If in release mode, offer to install or upgrade PyGhidra before launching from user-controlled environment
         pip_args: List[str] = ['-m', 'pip', 'install', '--no-index', '-f', str(dist_dir), 'pyghidra']

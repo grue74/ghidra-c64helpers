@@ -15,8 +15,7 @@
  */
 package agent.lldb.rmi;
 
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
 import java.nio.ByteBuffer;
@@ -29,15 +28,14 @@ import org.junit.experimental.categories.Category;
 
 import generic.test.category.NightlyCategory;
 import ghidra.app.plugin.core.debug.utils.ManagedDomainObject;
-import ghidra.dbg.testutil.DummyProc;
-import ghidra.dbg.util.PathPattern;
-import ghidra.dbg.util.PathPredicates;
 import ghidra.program.model.address.AddressSpace;
+import ghidra.pty.testutil.DummyProc;
 import ghidra.trace.database.ToyDBTraceBuilder;
 import ghidra.trace.model.Lifespan;
 import ghidra.trace.model.Trace;
 import ghidra.trace.model.memory.TraceMemorySpace;
 import ghidra.trace.model.target.TraceObject;
+import ghidra.trace.model.target.path.*;
 import ghidra.trace.model.time.TraceSnapshot;
 
 @Category(NightlyCategory.class) // this may actually be an @PortSensitive test
@@ -174,15 +172,15 @@ public class LldbHooksTest extends AbstractLldbTraceRmiTest {
 		if (object == null) {
 			return null;
 		}
-		PathPattern pat = PathPredicates.parse(pattern).getSingletonPattern();
+		PathPattern pat = PathFilter.parse(pattern).getSingletonPattern();
 //		if (pat.countWildcards() != 1) {
 //			throw new IllegalArgumentException("Exactly one wildcard required");
 //		}
-		List<String> path = object.getCanonicalPath().getKeyList();
+		KeyPath path = object.getCanonicalPath();
 		if (path.size() < pat.asPath().size()) {
 			return null;
 		}
-		List<String> matched = pat.matchKeys(path.subList(0, pat.asPath().size()));
+		List<String> matched = pat.matchKeys(path, false);
 		if (matched == null) {
 			return null;
 		}
@@ -348,13 +346,13 @@ public class LldbHooksTest extends AbstractLldbTraceRmiTest {
 	public void testOnBreakpointModified() throws Exception {
 		try (LldbAndTrace conn = startAndSyncLldb()) {
 			start(conn, getSpecimenPrint());
-			assertEquals(0, tb.objValues(lastSnap(conn), "Breakpoints[]").size());
+			assertEquals(0, tb.objValues(lastSnap(conn), "Processes[].Breakpoints[]").size());
 
 			//conn.execute("script lldb.debugger.SetAsync(False)");
 			conn.execute("breakpoint set -n main");
 			conn.execute("stepi");
 			TraceObject brk = waitForPass(() -> {
-				List<Object> brks = tb.objValues(lastSnap(conn), "Breakpoints[]");
+				List<Object> brks = tb.objValues(lastSnap(conn), "Processes[].Breakpoints[]");
 				assertEquals(1, brks.size());
 				return (TraceObject) brks.get(0);
 			});

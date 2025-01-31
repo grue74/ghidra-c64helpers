@@ -33,8 +33,6 @@ import db.Transaction;
 import generic.test.AbstractGenericTest;
 import generic.theme.GThemeDefaults.Colors.Messages;
 import ghidra.app.plugin.processors.sleigh.SleighLanguage;
-import ghidra.dbg.target.TargetExecutionStateful.TargetExecutionState;
-import ghidra.dbg.util.PathPredicates;
 import ghidra.framework.data.OpenMode;
 import ghidra.pcode.exec.*;
 import ghidra.pcode.exec.trace.TraceSleighUtils;
@@ -58,8 +56,11 @@ import ghidra.trace.model.*;
 import ghidra.trace.model.guest.TraceGuestPlatform;
 import ghidra.trace.model.guest.TracePlatform;
 import ghidra.trace.model.symbol.TraceReferenceManager;
-import ghidra.trace.model.target.*;
+import ghidra.trace.model.target.TraceObject;
 import ghidra.trace.model.target.TraceObject.ConflictResolution;
+import ghidra.trace.model.target.TraceObjectValue;
+import ghidra.trace.model.target.path.KeyPath;
+import ghidra.trace.model.target.path.PathFilter;
 import ghidra.trace.model.thread.TraceObjectThread;
 import ghidra.trace.model.thread.TraceThread;
 import ghidra.util.Msg;
@@ -432,6 +433,17 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 		return result.flip();
 	}
 
+	public class EventSuspension implements AutoCloseable {
+		public EventSuspension() {
+			trace.setEventsEnabled(false);
+		}
+
+		@Override
+		public void close() {
+			trace.setEventsEnabled(true);
+		}
+	}
+
 	/**
 	 * Start a transaction on the trace
 	 * 
@@ -442,6 +454,18 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 	 */
 	public Transaction startTransaction() {
 		return trace.openTransaction("Testing");
+	}
+
+	/**
+	 * Suspend events for the trace
+	 * 
+	 * <p>
+	 * Use this in a {@code try-with-resources} block
+	 * 
+	 * @return the suspension handle
+	 */
+	public EventSuspension suspendEvents() {
+		return new EventSuspension();
 	}
 
 	/**
@@ -762,7 +786,7 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 
 	public TraceObjectThread createObjectsProcessAndThreads() {
 		DBTraceObjectManager objs = trace.getObjectManager();
-		TraceObjectKeyPath pathProc1 = TraceObjectKeyPath.parse("Processes[1]");
+		KeyPath pathProc1 = KeyPath.parse("Processes[1]");
 		TraceObject proc1 = objs.createObject(pathProc1);
 		Lifespan zeroOn = Lifespan.nowOn(0);
 		proc1.insert(zeroOn, ConflictResolution.DENY);
@@ -771,7 +795,7 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 		TraceObject t2 = objs.createObject(pathProc1.key("Threads").index(2));
 		t2.insert(zeroOn, ConflictResolution.DENY);
 
-		proc1.setAttribute(zeroOn, "_state", TargetExecutionState.STOPPED.name());
+		proc1.setAttribute(zeroOn, "_state", TraceExecutionState.STOPPED.name());
 
 		return t1.queryInterface(TraceObjectThread.class);
 	}
@@ -779,9 +803,9 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 	public void createObjectsFramesAndRegs(TraceObjectThread thread, Lifespan lifespan,
 			TracePlatform platform, int n) {
 		DBTraceObjectManager objs = trace.getObjectManager();
-		TraceObjectKeyPath pathThread = thread.getObject().getCanonicalPath();
+		KeyPath pathThread = thread.getObject().getCanonicalPath();
 		for (int i = 0; i < n; i++) {
-			TraceObjectKeyPath pathContainer = pathThread.key("Stack").index(i).key("Registers");
+			KeyPath pathContainer = pathThread.key("Stack").index(i).key("Registers");
 			for (Register reg : platform.getLanguage().getRegisters()) {
 				TraceObject regObj = objs.createObject(pathContainer.index(reg.getName()));
 				regObj.insert(lifespan, ConflictResolution.DENY);
@@ -797,7 +821,7 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 	 */
 	public TraceObject obj(String canonicalPath) {
 		return trace.getObjectManager()
-				.getObjectByCanonicalPath(TraceObjectKeyPath.parse(canonicalPath));
+				.getObjectByCanonicalPath(KeyPath.parse(canonicalPath));
 	}
 
 	/**
@@ -818,7 +842,7 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 	 */
 	public TraceObject objAny(String path, Lifespan span) {
 		return trace.getObjectManager()
-				.getObjectsByPath(span, TraceObjectKeyPath.parse(path))
+				.getObjectsByPath(span, KeyPath.parse(path))
 				.findFirst()
 				.orElse(null);
 	}
@@ -845,7 +869,7 @@ public class ToyDBTraceBuilder implements AutoCloseable {
 	 */
 	public List<Object> objValues(long snap, String pattern) {
 		return trace.getObjectManager()
-				.getValuePaths(Lifespan.at(snap), PathPredicates.parse(pattern))
+				.getValuePaths(Lifespan.at(snap), PathFilter.parse(pattern))
 				.map(p -> p.getDestinationValue(trace.getObjectManager().getRootObject()))
 				.toList();
 	}

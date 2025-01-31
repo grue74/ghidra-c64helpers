@@ -2797,6 +2797,16 @@ void RuleBooleanDedup::getOpList(vector<uint4> &oplist) const
   oplist.push_back(CPUI_BOOL_OR);
 }
 
+/// \brief Determine if the two given boolean Varnodes always contain matching values
+///
+/// The boolean values can either always be equal or can always be complements of each other, and
+/// \b true will be returned.  In this case \b isFlip passes back \b false if the values are always equal
+/// or passes back \b true if the values are complements.  The method returns \b false if the values are
+/// uncorrelated.
+/// \param leftVn is the first given boolean Varnode to compare
+/// \param rightVn is the second given boolean Varnode to compare
+/// \param isFlip will pass back the type of correlation
+/// \return \b true if the Varnodes are correlated and \b false otherwise
 bool RuleBooleanDedup::isMatch(Varnode *leftVn,Varnode *rightVn,bool &isFlip)
 
 {
@@ -6298,7 +6308,7 @@ void AddTreeState::assignPropagatedType(PcodeOp *op)
   Datatype *inType = vn->getTypeReadFacing(op);
   Datatype *newType = op->getOpcode()->propagateType(inType, op, vn, op->getOut(), 0, -1);
   if (newType != (Datatype *)0)
-    op->getOut()->updateType(newType, false, false);
+    op->getOut()->updateType(newType);
 }
 
 /// Construct part of the tree that sums to a multiple of the base data-type size.
@@ -6749,7 +6759,7 @@ void RulePushPtr::duplicateNeed(PcodeOp *op,Funcdata &data)
     int4 slot = decOp->getSlot(outVn);
     PcodeOp *newOp = data.newOp(num, op->getAddr());	// Duplicate op associated with original address
     Varnode *newOut = buildVarnodeOut(outVn, newOp, data);	// Result contained in original storage
-    newOut->updateType(outVn->getType(),false,false);
+    newOut->updateType(outVn->getType());
     data.opSetOpcode(newOp, opc);
     data.opSetInput(newOp, inVn, 0);
     if (num > 1)
@@ -6959,7 +6969,6 @@ int8 RulePtrsubUndo::getExtraOffset(PcodeOp *op,int8 &multiplier)
     op = outvn->loneDescend();
   }
   extra = sign_extend(extra, 8*outvn->getSize()-1);
-  extra &= calc_mask(outvn->getSize());
   return extra;
 }
 
@@ -7033,6 +7042,8 @@ int8 RulePtrsubUndo::removeLocalAdds(Varnode *vn,Funcdata &data)
     }
     else if (opc == CPUI_PTRADD) {
       if (op->getIn(0) != vn) break;
+      // The PTRADD should be converted to an INT_ADD or COPY
+      // as it is associated with the invalid PTRSUB
       int8 ptraddmult = op->getIn(2)->getOffset();
       Varnode *invn = op->getIn(1);
       if (invn->isConstant()) {
@@ -7040,6 +7051,10 @@ int8 RulePtrsubUndo::removeLocalAdds(Varnode *vn,Funcdata &data)
 	data.opRemoveInput(op,2);
 	data.opRemoveInput(op,1);
 	data.opSetOpcode(op, CPUI_COPY);
+      }
+      else {
+	data.opUndoPtradd(op, false);
+	extra += removeLocalAddRecurse(op,1,DEPTH_LIMIT, data);
       }
     }
     else {
@@ -7257,7 +7272,7 @@ bool RulePtrsubCharConstant::pushConstFurther(Funcdata &data,TypePointer *outtyp
   addval *= op->getIn(2)->getOffset();
   val += addval;
   Varnode *newconst = data.newConstant(vn->getSize(),val);
-  newconst->updateType(outtype,false,false);		// Put the pointer datatype on new constant
+  newconst->updateType(outtype);		// Put the pointer datatype on new constant
   data.opRemoveInput(op,2);
   data.opRemoveInput(op,1);
   data.opSetOpcode(op,CPUI_COPY);
@@ -7319,7 +7334,7 @@ int4 RulePtrsubCharConstant::applyOp(PcodeOp *op,Funcdata &data)
   }
   else {	// Convert the original PTRSUB to a COPY of the constant
     Varnode *newvn = data.newConstant(outvn->getSize(),vn1->getOffset());
-    newvn->updateType(outtype,false,false);
+    newvn->updateType(outtype);
     data.opRemoveInput(op,1);
     data.opSetInput(op,newvn,0);
     data.opSetOpcode(op,CPUI_COPY);
@@ -7462,7 +7477,7 @@ bool RulePieceStructure::convertZextToPiece(PcodeOp *zext,Datatype *ct,int4 offs
   }
   Varnode *zerovn = data.newConstant(sz, 0);
   if (ct != (Datatype *)0 && ct->getSize() == sz)
-    zerovn->updateType(ct, false, false);
+    zerovn->updateType(ct);
   data.opSetOpcode(zext, CPUI_PIECE);
   data.opInsertInput(zext, zerovn, 0);
   if (invn->getType()->needsResolution())
@@ -7590,7 +7605,7 @@ int4 RulePieceStructure::applyOp(PcodeOp *op,Funcdata &data)
       Datatype *newType = data.getArch()->types->getExactPiece(ct, node.getTypeOffset(), vn->getSize());
       if (newType == (Datatype *)0)
 	newType = vn->getType();
-      newVn->updateType(newType, false, false);
+      newVn->updateType(newType);
       data.opSetOpcode(copyOp, CPUI_COPY);
       data.opSetInput(copyOp, vn, 0);
       data.opSetInput(node.getOp(),newVn,node.getSlot());
@@ -9240,12 +9255,16 @@ bool RuleConditionalMove::gatherExpression(Varnode *vn,vector<PcodeOp *> &ops,Fl
   return true;
 }
 
-/// Reproduce the bolean expression resulting in the given Varnode.
+/// \brief Construct the expression after the merge
+///
+/// Reproduce the boolean expression resulting in the given Varnode.
 /// Either reuse the existing Varnode or reconstruct it,
 /// making sure the expression does not depend on data in the branch.
+/// \param vn is the given boolean Varnode at the base of the expression
+/// \param ops is the set of PcodeOps in the expression
 /// \param insertop is point at which any reconstruction should be inserted
 /// \param data is the function being analyzed
-/// \return the Varnode representing the boolean expression
+/// \return the Varnode representing the (possible reproduced) boolean expression
 Varnode *RuleConditionalMove::constructBool(Varnode *vn,PcodeOp *insertop,vector<PcodeOp *> &ops,Funcdata &data)
 
 {
@@ -10808,13 +10827,13 @@ void RuleExpandLoad::modifyAndComparison(Funcdata &data,Varnode *oldVn,Varnode *
     uintb newOff = andOp->getIn(1)->getOffset();
     newOff <<= offset;
     Varnode *vn = data.newConstant(dt->getSize(), newOff);
-    vn->updateType(dt, false, false);
+    vn->updateType(dt);
     data.opSetInput(andOp, newVn, 0);
     data.opSetInput(andOp, vn, 1);
     newOff = compOp->getIn(1)->getOffset();
     newOff <<= offset;
     vn = data.newConstant(dt->getSize(), newOff);
-    vn->updateType(dt, false, false);
+    vn->updateType(dt);
     data.opSetInput(compOp,vn,1);
   }
 }

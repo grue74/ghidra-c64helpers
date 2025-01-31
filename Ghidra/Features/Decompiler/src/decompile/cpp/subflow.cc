@@ -2164,7 +2164,7 @@ void SplitDatatype::RootPointer::duplicateToTemp(Funcdata &data,PcodeOp *followO
 
 {
   Varnode *newRoot = data.buildCopyTemp(pointer, followOp);
-  newRoot->updateType(ptrType, false, false);
+  newRoot->updateType(ptrType);
   pointer = newRoot;
 }
 
@@ -2438,7 +2438,7 @@ bool SplitDatatype::generateConstants(Varnode *vn,vector<Varnode *> &inVarnodes)
     val &= calc_mask(dt->getSize());
     Varnode *outVn = data.newConstant(dt->getSize(), val);
     inVarnodes.push_back(outVn);
-    outVn->updateType(dt, false, false);
+    outVn->updateType(dt);
   }
   data.opDestroy(op);
   return true;
@@ -2463,7 +2463,7 @@ void SplitDatatype::buildInConstants(Varnode *rootVn,vector<Varnode *> &inVarnod
     uintb val = (baseVal >> (8*off)) & calc_mask(dt->getSize());
     Varnode *outVn = data.newConstant(dt->getSize(), val);
     inVarnodes.push_back(outVn);
-    outVn->updateType(dt, false, false);
+    outVn->updateType(dt);
   }
 }
 
@@ -2493,7 +2493,7 @@ void SplitDatatype::buildInSubpieces(Varnode *rootVn,PcodeOp *followOp,vector<Va
     data.opSetInput(subpiece,data.newConstant(4, off), 1);
     Varnode *outVn = data.newVarnodeOut(dt->getSize(), addr, subpiece);
     inVarnodes.push_back(outVn);
-    outVn->updateType(dt, false, false);
+    outVn->updateType(dt);
     data.opInsertBefore(subpiece, followOp);
   }
 }
@@ -2631,7 +2631,7 @@ void SplitDatatype::buildPointers(Varnode *rootVn,TypePointer *ptrType,int4 base
 	data.opSetInput(newOp, indexVn, 1);
 	data.opSetInput(newOp, data.newConstant(inPtr->getSize(), sz), 2);
 	Datatype *indexType = types->getBase(indexVn->getSize(),TYPE_INT);
-	indexVn->updateType(indexType, false, false);
+	indexVn->updateType(indexType);
       }
       else {
 	int8 finalOffset = AddrSpace::byteToAddressInt(curOff - newOff,ptrType->getWordSize());
@@ -2642,7 +2642,7 @@ void SplitDatatype::buildPointers(Varnode *rootVn,TypePointer *ptrType,int4 base
       }
       inPtr = data.newUniqueOut(inPtr->getSize(), newOp);
       Datatype *tmpPtr = types->getTypePointerStripArray(ptrType->getSize(), newType, ptrType->getWordSize());
-      inPtr->updateType(tmpPtr, false, false);
+      inPtr->updateType(tmpPtr);
       data.opInsertBefore(newOp, followOp);
       tmpType = newType;
       curOff = newOff;
@@ -2842,7 +2842,7 @@ bool SplitDatatype::splitStore(PcodeOp *storeOp,Datatype *outType)
       data.opSetInput(newLoadOp,loadPtrs[i],1);
       Datatype *dt = dataTypePieces[i].inType;
       Varnode *vn = data.newUniqueOut(dt->getSize(), newLoadOp);
-      vn->updateType(dt, false, false);
+      vn->updateType(dt);
       inVarnodes.push_back(vn);
       data.opInsertBefore(newLoadOp, loadOp);
     }
@@ -2981,6 +2981,70 @@ int4 RuleSplitStore::applyOp(PcodeOp *op,Funcdata &data)
   if (splitter.splitStore(op, outType))
     return 1;
   return 0;
+}
+
+void RuleDumptyHumpLate::getOpList(vector<uint4> &oplist) const
+
+{
+  oplist.push_back(CPUI_SUBPIECE);
+}
+
+int4 RuleDumptyHumpLate::applyOp(PcodeOp *op,Funcdata &data)
+
+{
+  Varnode *vn = op->getIn(0);
+  if (!vn->isWritten()) return 0;
+  PcodeOp *pieceOp = vn->getDef();
+  if (pieceOp->code() != CPUI_PIECE) return 0;
+  Varnode *out = op->getOut();
+  int4 outSize = out->getSize();
+  int4 trunc = (int4)op->getIn(1)->getOffset();
+  for(;;) {
+    // Try to backtrack thru PIECE to the component vn is being truncated from
+    Varnode *trialVn = pieceOp->getIn(1);	// Assume the least significant component
+    int4 trialTrunc = trunc;
+    if (trunc >= trialVn->getSize()) {	// Test for truncation from the most significant part
+      trialTrunc -= trialVn->getSize();		// How much is truncated
+      trialVn = pieceOp->getIn(0);
+    }
+    if (outSize + trialTrunc > trialVn->getSize())
+      break;				// vn crosses both components
+    vn = trialVn;				// Commit to this component
+    trunc = trialTrunc;
+    if (vn->getSize() == outSize)
+      break;				// Found matching component
+    if (!vn->isWritten())
+      break;
+    pieceOp = vn->getDef();
+    if (pieceOp->code() != CPUI_PIECE)
+      break;
+  }
+  if (vn == op->getIn(0))
+    return 0;				// Didn't backtrack thru any PIECE
+  if (vn->isWritten() && vn->getDef()->code() == CPUI_COPY)
+    vn = vn->getDef()->getIn(0);
+  PcodeOp *removeOp;
+  if (outSize != vn->getSize()) {	// Component does not match size exactly. Preserve SUBPIECE.
+    removeOp = op->getIn(0)->getDef();
+    if (op->getIn(1)->getOffset() != trunc)
+      data.opSetInput(op, data.newConstant(4, trunc), 1);
+    data.opSetInput(op, vn, 0);
+  }
+  else if (out->isAutoLive()) {		// Exact match but output address fixed. Change SUBPIECE to COPY.
+    removeOp = op->getIn(0)->getDef();
+    data.opRemoveInput(op, 1);
+    data.opSetOpcode(op, CPUI_COPY);
+    data.opSetInput(op, vn, 0);
+  }
+  else {				// Exact match. Completely replace output with component.
+    removeOp = op;
+    data.totalReplace(out, vn);
+  }
+  if (removeOp->getOut()->hasNoDescend() && !removeOp->getOut()->isAutoLive()) {
+    vector<PcodeOp *> scratch;
+    data.opDestroyRecursive(removeOp, scratch);
+  }
+  return 1;
 }
 
 /// This method distinguishes between a floating-point variable with \e full precision, where all the

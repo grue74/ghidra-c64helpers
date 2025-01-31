@@ -289,7 +289,7 @@ Varnode *StringSequence::constructTypedPointer(PcodeOp *insertPoint)
   spacePtr = data.newUniqueOut(spacePtr->getSize(), ptrsub);
   data.opInsertBefore(ptrsub, insertPoint);
   TypePointer *curType = types->getTypePointerStripArray(spacePtr->getSize(), baseType, spc->getWordSize());
-  spacePtr->updateType(curType, false, false);
+  spacePtr->updateType(curType);
   int8 curOff = rootAddr.getOffset() - entry->getFirst();
   while(baseType != charType) {
     int4 elSize = -1;
@@ -321,7 +321,7 @@ Varnode *StringSequence::constructTypedPointer(PcodeOp *insertPoint)
     spacePtr = data.newUniqueOut(spacePtr->getSize(), ptrsub);
     data.opInsertBefore(ptrsub, insertPoint);
     curType = types->getTypePointerStripArray(spacePtr->getSize(), baseType, spc->getWordSize());
-    spacePtr->updateType(curType, false, false);
+    spacePtr->updateType(curType);
     curOff = newOff;
   }
   if (curOff != 0) {
@@ -333,7 +333,7 @@ Varnode *StringSequence::constructTypedPointer(PcodeOp *insertPoint)
     spacePtr = data.newUniqueOut(spacePtr->getSize(), addOp);
     data.opInsertBefore(addOp, insertPoint);
     curType = types->getTypePointer(spacePtr->getSize(), charType, spc->getWordSize());
-    spacePtr->updateType(curType, false, false);
+    spacePtr->updateType(curType);
   }
   return spacePtr;
 }
@@ -365,7 +365,7 @@ PcodeOp *StringSequence::buildStringCopy(void)
   data.opSetInput(copyOp, destPtr, 1);
   data.opSetInput(copyOp, srcPtr, 2);
   Varnode *lenVn = data.newConstant(4,index);
-  lenVn->updateType(copyOp->inputTypeLocal(3), false, false);
+  lenVn->updateType(copyOp->inputTypeLocal(3));
   data.opSetInput(copyOp, lenVn, 3);
   data.opInsertBefore(copyOp, insertPoint);
   return copyOp;
@@ -717,14 +717,14 @@ PcodeOp *HeapSequence::buildStringCopy(void)
 	data.opSetInput(addOp, indexVn, 0);
 	data.opSetInput(addOp, nonConstAdds[i],1);
 	indexVn = data.newUniqueOut(indexVn->getSize(), addOp);
-	indexVn->updateType(intType, false, false);
+	indexVn->updateType(intType);
 	data.opInsertBefore(addOp, insertPoint);
       }
     }
     if (baseOffset != 0) {				// Add in any non-zero constant
       uint8 numEl = baseOffset / charType->getAlignSize();
       Varnode *cvn = data.newConstant(basePointer->getSize(), numEl);
-      cvn->updateType(intType, false, false);
+      cvn->updateType(intType);
       if (indexVn == (Varnode *)0)
 	indexVn = cvn;
       else {
@@ -733,7 +733,7 @@ PcodeOp *HeapSequence::buildStringCopy(void)
 	data.opSetInput(addOp, indexVn, 0);
 	data.opSetInput(addOp, cvn,1);
 	indexVn = data.newUniqueOut(indexVn->getSize(), addOp);
-	indexVn->updateType(intType, false, false);
+	indexVn->updateType(intType);
 	data.opInsertBefore(addOp, insertPoint);
       }
     }
@@ -743,7 +743,7 @@ PcodeOp *HeapSequence::buildStringCopy(void)
     data.opSetInput(ptrAdd,basePointer,0);
     data.opSetInput(ptrAdd,indexVn,1);
     data.opSetInput(ptrAdd,data.newConstant(basePointer->getSize(), charType->getAlignSize()),2);
-    destPtr->updateType(charPtrType, false, false);
+    destPtr->updateType(charPtrType);
     data.opInsertBefore(ptrAdd, insertPoint);
   }
   int4 index;
@@ -755,7 +755,7 @@ PcodeOp *HeapSequence::buildStringCopy(void)
   data.opSetInput(copyOp, destPtr, 1);
   data.opSetInput(copyOp, srcPtr, 2);
   Varnode *lenVn = data.newConstant(4,index);
-  lenVn->updateType(copyOp->inputTypeLocal(3), false, false);
+  lenVn->updateType(copyOp->inputTypeLocal(3));
   data.opSetInput(copyOp, lenVn, 3);
   data.opInsertBefore(copyOp, insertPoint);
   return copyOp;
@@ -807,33 +807,6 @@ void HeapSequence::gatherIndirectPairs(vector<PcodeOp *> &indirects,vector<Varno
     indirects[i]->clearMark();
 }
 
-/// \brief Remove the given PcodeOp and any other ops that uniquely produce its inputs
-///
-/// The given PcodeOp is always removed.  PcodeOps are recursively removed, if the only data-flow
-/// path of their output is to the given op, and they are not a CALL or are otherwise special.
-/// \param op is the given PcodeOp to remove
-/// \param scratch is scratch space for holding
-void HeapSequence::removeRecursive(PcodeOp *op,vector<PcodeOp *> &scratch)
-
-{
-  scratch.clear();
-  scratch.push_back(op);
-  int4 pos = 0;
-  while(pos < scratch.size()) {
-    op = scratch[pos];
-    pos += 1;
-    for(int4 i=0;i<op->numInput();++i) {
-      Varnode *vn = op->getIn(i);
-      if (!vn->isWritten() || vn->isAutoLive()) continue;
-      if (vn->loneDescend() == (PcodeOp *)0) continue;
-      PcodeOp *defOp = vn->getDef();
-      if (defOp->isCall() || defOp->isIndirectSource()) continue;
-      scratch.push_back(defOp);
-    }
-    data.opDestroy(op);
-  }
-}
-
 /// If the STORE pointer no longer has any other uses, remove the PTRADD producing it, recursively,
 /// up to the base pointer.  INDIRECT ops surrounding any STORE that is removed are replaced with
 /// INDIRECTs around the user-op replacing the STOREs.
@@ -847,7 +820,7 @@ void HeapSequence::removeStoreOps(PcodeOp *replaceOp)
   gatherIndirectPairs(indirects, indirectPairs);
   for(int4 i=0;i<moveOps.size();++i) {
     PcodeOp *op = moveOps[i].op;
-    removeRecursive(op, scratch);
+    data.opDestroyRecursive(op, scratch);
   }
   for(int4 i=0;i<indirects.size();++i) {
     data.opDestroy(indirects[i]);

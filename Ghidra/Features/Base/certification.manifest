@@ -99,6 +99,7 @@ data/typeinfo/golang/golang_1.19_anybit_any.gdt||GHIDRA||||END|
 data/typeinfo/golang/golang_1.20_anybit_any.gdt||GHIDRA||||END|
 data/typeinfo/golang/golang_1.21_anybit_any.gdt||GHIDRA||||END|
 data/typeinfo/golang/golang_1.22_anybit_any.gdt||GHIDRA||||END|
+data/typeinfo/golang/golang_1.23_anybit_any.gdt||GHIDRA||||END|
 data/typeinfo/golang/runtimesnapshot.go||GHIDRA||||END|
 data/typeinfo/mac_10.9/mac_osx.gdt||GHIDRA||||END|
 data/typeinfo/rust/rust-common.gdt||GHIDRA||||END|
@@ -311,11 +312,11 @@ src/main/help/help/topics/FrontEndPlugin/images/SelectSharedProjectType.png||GHI
 src/main/help/help/topics/FrontEndPlugin/images/ServerInfo.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/SharedProjectInfo.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/UsersPanel.png||GHIDRA||||END|
-src/main/help/help/topics/FrontEndPlugin/images/UsersPanelMini.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/VersionedFileCOnoServer.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/VersionedFileCOwithServer.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/VersionedFileIcon.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/ViewOtherProjects.png||GHIDRA||||END|
+src/main/help/help/topics/FrontEndPlugin/images/ViewProjectAccessPanel.png||GHIDRA||||END|
 src/main/help/help/topics/FrontEndPlugin/images/hijack_file.png||GHIDRA||||END|
 src/main/help/help/topics/FunctionComparison/FunctionComparison.htm||GHIDRA||||END|
 src/main/help/help/topics/FunctionComparison/images/AddFunctionsPanel.png||GHIDRA||||END|
@@ -398,6 +399,7 @@ src/main/help/help/topics/MemoryMapPlugin/images/MemoryMap.png||GHIDRA||||END|
 src/main/help/help/topics/MemoryMapPlugin/images/MoveMemory.png||GHIDRA||||END|
 src/main/help/help/topics/MemoryMapPlugin/images/SetImageBaseDialog.png||GHIDRA||||END|
 src/main/help/help/topics/MemoryMapPlugin/images/SplitMemoryBlock.png||GHIDRA||||END|
+src/main/help/help/topics/Misc/AddressExpressions.htm||GHIDRA||||END|
 src/main/help/help/topics/Misc/Appendix.htm||GHIDRA||||END|
 src/main/help/help/topics/Misc/Welcome_to_Ghidra_Help.htm||GHIDRA||||END|
 src/main/help/help/topics/Navigation/Navigation.htm||GHIDRA||||END|
@@ -560,6 +562,7 @@ src/main/help/help/topics/ShowInstructionInfoPlugin/images/RawInstructionDisplay
 src/main/help/help/topics/ShowInstructionInfoPlugin/images/ShowInstructionInfo.png||GHIDRA||||END|
 src/main/help/help/topics/ShowInstructionInfoPlugin/images/UnableToLaunch.png||GHIDRA||||END|
 src/main/help/help/topics/Snapshots/Snapshots.html||GHIDRA||||END|
+src/main/help/help/topics/SourceFilesTablePlugin/SourceFilesTable.html||GHIDRA||||END|
 src/main/help/help/topics/StackEditor/StackEditor.html||GHIDRA||||END|
 src/main/help/help/topics/StackEditor/images/NumElementsPrompt.png||GHIDRA||||END|
 src/main/help/help/topics/StackEditor/images/StackEditor.png||GHIDRA||||END|
@@ -898,6 +901,7 @@ src/main/resources/images/pencil16.png||GHIDRA||||END|
 src/main/resources/images/pin.png||GHIDRA||||END|
 src/main/resources/images/play_again.png||GHIDRA||||END|
 src/main/resources/images/preferences-system.png||Tango Icons - Public Domain|||tango|END|
+src/main/resources/images/python.png||GHIDRA||||END|
 src/main/resources/images/question_zero.png||GHIDRA||||END|
 src/main/resources/images/red-cross.png||GHIDRA||||END|
 src/main/resources/images/redQuestionMark.png||GHIDRA||||END|
