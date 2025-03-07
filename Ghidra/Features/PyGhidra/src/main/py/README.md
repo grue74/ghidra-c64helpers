@@ -305,3 +305,16 @@ underscore appended to the package name:
 import pdb   # imports Python's pdb
 import pdb_  # imports Ghidra's pdb
 ```
+## Change History
+__2.0.2:__
+* [`pyghidra.open_program()`](#pyghidraopen_program) now properly throws an exception if the project
+  exists and is locked.
+  
+__2.0.1:__
+* PyGhidra now respects the `application.settingsdir` property set in Ghidra's `launch.properties`
+  file.
+* Fixed an issue that prevented accessing Java getters/setters as properties on non-public classes.
+* PyGhidra can now find modules that live in directories specified by Ghidra's _"Bundle Manager"_.
+
+__2.0.0:__
+* Initial Release.
