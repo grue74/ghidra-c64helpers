@@ -66,6 +66,8 @@ import ghidra.util.task.TaskMonitor;
  */
 public class MachoProgramBuilder {
 
+	public static final String HEADER_SYMBOL = "MACH_HEADER";
+
 	protected MachHeader machoHeader;
 	protected Program program;
 	protected ByteProvider provider;
@@ -975,6 +977,7 @@ public class MachoProgramBuilder {
 		try {
 			DataUtilities.createData(program, headerAddr, header.toDataType(), -1,
 				DataUtilities.ClearDataMode.CHECK_FOR_SPACE);
+			program.getSymbolTable().createLabel(headerAddr, HEADER_SYMBOL, SourceType.IMPORTED);
 
 			monitor.initialize(header.getLoadCommands().size(), "Marking up header...");
 			for (LoadCommand loadCommand : header.getLoadCommands()) {
@@ -1802,7 +1805,7 @@ public class MachoProgramBuilder {
 		}
 	}
 
-	protected void setCompiler() {
+	protected void setCompiler() throws CancelledException {
 		// Check for Rust
 		try {
 			SegmentCommand segment = machoHeader.getSegment(SegmentNames.SEG_TEXT);
@@ -1813,7 +1816,8 @@ public class MachoProgramBuilder {
 			if (section == null) {
 				return;
 			}
-			if (RustUtilities.isRust(memory.getBlock(space.getAddress(section.getAddress())))) {
+			if (RustUtilities.isRust(program,
+				memory.getBlock(space.getAddress(section.getAddress())), monitor)) {
 				program.setCompiler(RustConstants.RUST_COMPILER);
 				int extensionCount = RustUtilities.addExtensions(program, monitor,
 					RustConstants.RUST_EXTENSIONS_UNIX);

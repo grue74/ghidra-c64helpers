@@ -138,7 +138,7 @@ public class EditDataFieldDialog extends DialogComponentProvider {
 	private void initializeFields() {
 		String name = component.getFieldName();
 		if (StringUtils.isBlank(name)) {
-			name = component.getDefaultFieldName();
+			name = "";
 		}
 		nameField.setText(name);
 		commentField.setText(component.getComment());
@@ -183,10 +183,11 @@ public class EditDataFieldDialog extends DialogComponentProvider {
 
 	boolean hasNameChange() {
 		String newName = getNewFieldName();
-		if (newName.equals(component.getFieldName())) {
-			return false;
+		String currentName = component.getFieldName();
+		if (currentName == null) {
+			currentName = component.getDefaultFieldName();
 		}
-		if (newName.equals(component.getDefaultFieldName())) {
+		if (newName.equals(currentName)) {
 			return false;
 		}
 		return true;
