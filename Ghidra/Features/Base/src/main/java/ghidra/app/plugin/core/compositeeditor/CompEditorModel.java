@@ -936,16 +936,18 @@ public abstract class CompEditorModel extends CompositeEditorModel {
 			endRowIndex <= 0 || endRowIndex >= numComps) {
 			return false;
 		}
-		DataTypeComponent comp = getComponent(startRowIndex - 1);
-		deleteComponent(startRowIndex - 1);
-		try {
-			insert(endRowIndex, comp.getDataType(), comp.getLength(), comp.getFieldName(),
-				comp.getComment());
-		}
-		catch (InvalidDataTypeException e) {
-			return false;
-		}
-		return true;
+		return viewDTM.withTransaction("Shift Up", () -> {
+			DataTypeComponent comp = getComponent(startRowIndex - 1);
+			deleteComponent(startRowIndex - 1);
+			try {
+				insert(endRowIndex, comp.getDataType(), comp.getLength(), comp.getFieldName(),
+					comp.getComment());
+			}
+			catch (InvalidDataTypeException e) {
+				return false;
+			}
+			return true;
+		});
 	}
 
 	/**
@@ -962,16 +964,18 @@ public abstract class CompEditorModel extends CompositeEditorModel {
 			endRowIndex < 0 || endRowIndex >= numComps - 1) {
 			return false;
 		}
-		DataTypeComponent comp = getComponent(endRowIndex + 1);
-		deleteComponent(endRowIndex + 1);
-		try {
-			insert(startRowIndex, comp.getDataType(), comp.getLength(), comp.getFieldName(),
-				comp.getComment());
-		}
-		catch (InvalidDataTypeException e) {
-			return false;
-		}
-		return true;
+		return viewDTM.withTransaction("Shift Down", () -> {
+			DataTypeComponent comp = getComponent(endRowIndex + 1);
+			deleteComponent(endRowIndex + 1);
+			try {
+				insert(startRowIndex, comp.getDataType(), comp.getLength(), comp.getFieldName(),
+					comp.getComment());
+			}
+			catch (InvalidDataTypeException e) {
+				return false;
+			}
+			return true;
+		});
 	}
 
 	@Override
@@ -1066,6 +1070,7 @@ public abstract class CompEditorModel extends CompositeEditorModel {
 				replace(rowIndex, array, array.getLength()); // Can throw UsrException.
 			}
 		});
+		componentEdited();
 	}
 
 	/**
@@ -1629,15 +1634,6 @@ public abstract class CompEditorModel extends CompositeEditorModel {
 		}
 	}
 
-	/**
-	 * Removes the indicated data type from any components to prevent a cycle
-	 * being created by this component being updated. Structures will actually
-	 * clear any components containing the indicated data type.
-	 * Unions will delete their components that contain the data type.
-	 * @param comp the composite data type that contains the data type being edited.
-	 */
-	abstract void removeDtFromComponents(Composite comp);
-
 //==================================================================================================
 // End of Override CompositeViewerModel CategoryChangeListener methods
 //==================================================================================================
@@ -1669,15 +1665,16 @@ public abstract class CompEditorModel extends CompositeEditorModel {
 		}
 		DataTypeComponent dtc = getComponent(rowIndex);
 		DataType dt = dtc.getDataType();
-		int dtcLen = dt.getLength();
-		if (dtcLen < 0) {
-			dtcLen = dtc.getLength();
-		}
-		int maxDups = (Integer.MAX_VALUE - getLength()) / dtcLen;
-		if (dt != DataType.DEFAULT && isShowingUndefinedBytes() && !isAtEnd(rowIndex)) {
-			// If editModel is showing undefined bytes (non-packed)
-			// then constrain by number of undefined bytes that follow.
-			maxDups = getNumUndefinedBytesAfter(dtc) / dtcLen;
+		int dtcLen = dtc.getLength();
+
+		int maxDups = (Integer.MAX_VALUE - getLength());
+		if (dtcLen > 0) {
+			maxDups /= dtcLen;
+			if (dt != DataType.DEFAULT && isShowingUndefinedBytes() && !isAtEnd(rowIndex)) {
+				// If editModel is showing undefined bytes (non-packed)
+				// then constrain by number of undefined bytes that follow.
+				maxDups = getNumUndefinedBytesAfter(dtc) / dtcLen;
+			}
 		}
 		return maxDups;
 	}

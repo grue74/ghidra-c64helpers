@@ -128,11 +128,13 @@ public class DebuggerCoordinates {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof DebuggerCoordinates)) {
+		if (!(obj instanceof DebuggerCoordinates that)) {
 			return false;
 		}
-		DebuggerCoordinates that = (DebuggerCoordinates) obj;
 		if (!Objects.equals(this.trace, that.trace)) {
+			return false;
+		}
+		if (!Objects.equals(this.platform, that.platform)) {
 			return false;
 		}
 		if (!Objects.equals(this.target, that.target)) {
@@ -402,7 +404,16 @@ public class DebuggerCoordinates {
 		return new DebuggerCoordinates(trace, platform, target, thread, view, newTime, frame, path);
 	}
 
+	/**
+	 * Get these same coordinates with time replaced by the given schedule
+	 * 
+	 * @param newTime the new schedule
+	 * @return the new coordinates
+	 */
 	public DebuggerCoordinates time(TraceSchedule newTime) {
+		if (Objects.equals(time, newTime)) {
+			return this;
+		}
 		if (trace == null) {
 			return NOWHERE;
 		}
@@ -427,7 +438,6 @@ public class DebuggerCoordinates {
 		if (!Objects.equals(this.trace, that.trace)) {
 			return false;
 		}
-
 		if (!Objects.equals(this.platform, that.platform)) {
 			return false;
 		}

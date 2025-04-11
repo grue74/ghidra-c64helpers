@@ -226,14 +226,19 @@ public class MachoProgramBuilder {
 		for (SegmentCommand segment : segments) {
 			monitor.increment();
 
-			if (segment.getFileSize() > 0 && segment.getVMsize() > 0 &&
-				(allowZeroAddr || segment.getVMaddress() != 0)) {
-				if (createMemoryBlock(segment.getSegmentName(),
-					space.getAddress(segment.getVMaddress()), segment.getFileOffset(),
-					segment.getFileSize(), segment.getSegmentName(), source, segment.isRead(),
-					segment.isWrite(), segment.isExecute(), false, false) == null) {
-					log.appendMsg(String.format("Failed to create block: %s 0x%x 0x%x",
-						segment.getSegmentName(), segment.getVMaddress(), segment.getVMsize()));
+			if (segment.getSegmentName().equals(SegmentNames.SEG_PAGEZERO)) {
+				continue;
+			}
+
+			if (segment.getVMsize() > 0 && (allowZeroAddr || segment.getVMaddress() != 0)) {
+				if (segment.getFileSize() > 0) {
+					if (createMemoryBlock(segment.getSegmentName(),
+						space.getAddress(segment.getVMaddress()), segment.getFileOffset(),
+						segment.getFileSize(), segment.getSegmentName(), source, segment.isRead(),
+						segment.isWrite(), segment.isExecute(), false, false) == null) {
+						log.appendMsg(String.format("Failed to create block: %s 0x%x 0x%x",
+							segment.getSegmentName(), segment.getVMaddress(), segment.getVMsize()));
+					}
 				}
 				if (segment.getVMsize() > segment.getFileSize()) {
 					// Pad the remaining address range with uninitialized data
@@ -274,7 +279,8 @@ public class MachoProgramBuilder {
 				AddressSpace sectionSpace = overlaySections.contains(section)
 						? segmentOverlayMap.get(section.getSegmentName())
 						: space;
-				if (section.getSize() > 0 && section.getOffset() > 0 &&
+				if (section.getSize() > 0 &&
+					(section.getOffset() > 0 || section.getType() == SectionTypes.S_ZEROFILL) &&
 					(allowZeroAddr || section.getAddress() != 0)) {
 					if (createMemoryBlock(section.getSectionName(),
 						sectionSpace.getAddress(section.getAddress()), section.getOffset(),
@@ -737,7 +743,7 @@ public class MachoProgramBuilder {
 					if (name != null && name.length() > 0) {
 						program.getSymbolTable().createLabel(addr, name, SourceType.IMPORTED);
 						program.getExternalManager()
-								.addExtLocation(Library.UNKNOWN, name, addr, SourceType.IMPORTED);
+								.addExtLocation(Library.UNKNOWN, name, null, SourceType.IMPORTED);
 					}
 				}
 				catch (Exception e) {
@@ -1457,7 +1463,7 @@ public class MachoProgramBuilder {
 	}
 
 	private void addLibrary(String library) {
-		library = library.replaceAll(" ", "_");
+		library = SymbolUtilities.replaceInvalidChars(library, true);
 		try {
 			program.getExternalManager().addExternalLibraryName(library, SourceType.IMPORTED);
 		}
@@ -1861,7 +1867,8 @@ public class MachoProgramBuilder {
 			throw new Exception(
 				"Library ordinal '%d' outside of expected range".formatted(libraryOrdinal));
 		}
-		String libraryName = libraryPaths.get(libraryIndex).replaceAll(" ", "_");
+		String libraryName =
+			SymbolUtilities.replaceInvalidChars(libraryPaths.get(libraryIndex), true);
 		Library library = extManager.getExternalLibrary(libraryName);
 		if (library == null) {
 			throw new Exception(
@@ -1874,7 +1881,7 @@ public class MachoProgramBuilder {
 				loc.setName(library, symbol, SourceType.IMPORTED);
 			}
 			catch (InvalidInputException e) {
-				throw new Exception("Symbol name contains illegal characters");
+				throw new Exception(e.getMessage());
 			}
 		}
 	}

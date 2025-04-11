@@ -252,7 +252,6 @@ public class DecompilerProvider extends NavigatableComponentProviderAdapter
 
 	@Override
 	public boolean goTo(Program gotoProgram, ProgramLocation location) {
-
 		if (!isConnected()) {
 			if (program == null) {
 				// Special Case: this 'disconnected' provider is waiting to be initialized
@@ -961,6 +960,10 @@ public class DecompilerProvider extends NavigatableComponentProviderAdapter
 		EditDataTypeAction editDataTypeAction = new EditDataTypeAction();
 		setGroupInfo(editDataTypeAction, variableGroup, subGroupPosition++);
 
+		// shows the quick editor dialog
+		EditFieldAction editFieldAction = new EditFieldAction();
+		setGroupInfo(editFieldAction, variableGroup, subGroupPosition++);
+
 		//
 		// Listing action for Creating Structure on a Variable
 		//
@@ -1151,6 +1154,7 @@ public class DecompilerProvider extends NavigatableComponentProviderAdapter
 		addLocalAction(decompilerCreateStructureAction);
 		tool.addAction(listingCreateStructureAction);
 		addLocalAction(editDataTypeAction);
+		addLocalAction(editFieldAction);
 		addLocalAction(specifyCProtoAction);
 		addLocalAction(overrideSigAction);
 		addLocalAction(editOverrideSigAction);
