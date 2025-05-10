@@ -419,11 +419,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 		if (program == null) {
 			return state;
 		}
-		SaveState pstate = plugin.readProgramLaunchConfig(program, getConfigName(), forPrompt);
-		if (!pstate.isEmpty()) {
-			state = pstate;
-		}
-		return state;
+		return plugin.readProgramLaunchConfig(program, getConfigName(), forPrompt);
 	}
 
 	/**
@@ -538,7 +534,7 @@ public abstract class AbstractTraceRmiLaunchOffer implements TraceRmiLaunchOffer
 			Map<String, TerminalSession> sessions, Map<String, ValStr<?>> args,
 			SocketAddress address) throws Exception;
 
-	static class NoStaticMappingException extends Exception {
+	public static class NoStaticMappingException extends Exception {
 		public NoStaticMappingException(String message) {
 			super(message);
 		}

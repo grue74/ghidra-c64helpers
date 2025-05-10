@@ -1,6 +1,6 @@
-# Ghidra Installation Guide
-The installation information provided is effective as of Ghidra 11.3 and is subject to change with
-future releases.
+# Getting Started with Ghidra
+The information provided in this document is effective as of Ghidra 11.4 and is subject to change 
+with future releases.
 
 ## Table of Contents
  1. [Platforms Supported](#platforms-supported)
@@ -10,6 +10,7 @@ future releases.
  3. [Installing Ghidra](#installing-ghidra)
     * [Installation Notes](#installation-notes)
     * [Java Notes](#java-notes)
+    * [Debugger Notes](#debugger-notes)
  4. [Ghidra Installation Directory Layout](#ghidra-installation-directory-layout)
  5. [Building Native Components](#building-native-components)
  6. [Running Ghidra](#running-ghidra)
@@ -18,6 +19,7 @@ future releases.
     * [Headless (Batch) Mode](#headless-batch-mode)
     * [Single Jar Mode](#single-jar-mode)
     * [PyGhidra Mode](#pyghidra-mode)
+    * [Behavioral Similarity (BSim)](#behavioral-similarity-bsim)
  7. [Extensions](#extensions)
     * [Ghidra Extension Notes](#ghidra-extension-notes)
  8. [Ghidra Development](#ghidra-development)
@@ -124,7 +126,7 @@ using any unzip program (built-in OS utilities, 7-Zip, WinZip, WinRAR, etc).
        3. Click `Environment variables...`
     3. Add the JDK bin directory to the PATH variable:
        1. Under `System variables`, highlight `Path` and click `Edit...`
-       2. At the end of the the `Variable value` field, add a semicolon followed by 
+       2. At the end of the `Variable value` field, add a semicolon followed by
           `<path of extracted JDK dir>\bin`, or use the `New` button in the
           `Edit environment variable` window to add a new entry to the `Path`.
        3. Click `OK`
@@ -166,7 +168,8 @@ are included in the distribution, but you may still install them from PyPI if yo
 
 Different native debuggers have varying requirements, so you do not necessarily have to install all
 of the above packages. Each connector will inform you of its specific requirements and where they
-must be installed. In some cases, you may need to install packages on the target system.
+must be installed. In some cases, you may need to install packages on the target system.  
+For more information, see `<GhidraInstallDir>/docs/GhidraClass/Debugger/A1=GettingStarted.html`
 
 ## Ghidra Installation Directory Layout
 When Ghidra is installed, the runnable software gets extracted to a new directory we will refer
@@ -268,7 +271,7 @@ A single `ghidra.jar` file can be created using the `<GhidraInstallDir>/support/
 script.
 
 ### PyGhidra Mode
-Ghidra has integrated the the popular Pyhidra extension to enable native CPython 3 support out of
+Ghidra has integrated the popular Pyhidra extension to enable native CPython 3 support out of
 the box. To enable this support, Ghidra must be launched from a Python environment using special
 launch scripts.
 1. Navigate to `<GhidraInstallDir>/support/`
@@ -289,6 +292,10 @@ import it from other Python scripts, or launch PyGhidra using the `pyghidra` or 
 commands. For more information on using PyGhidra, see 
 [`<GhidraInstallDir>/Ghidra/Features/PyGhidra/README.html`](
 ../Ghidra/Features/PyGhidra/src/main/py/README.md).
+
+### Behavioral Similarity (BSim)
+BSim is a Ghidra plugin for finding structurally similar functions in collections of binaries.   
+For more information, see `<GhidraInstallDir>/docs/GhidraClass/BSim/BSimTutorial_Intro.html`
 
 ## Extensions
 Extensions are optional components that can:
