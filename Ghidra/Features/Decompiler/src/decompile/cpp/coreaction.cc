@@ -2724,8 +2724,9 @@ int4 ActionSetCasts::apply(Funcdata &data)
       if (opc == CPUI_CAST) continue;
       if (opc == CPUI_PTRADD) {	// Check for PTRADD that no longer fits its pointer
 	int4 sz = (int4)op->getIn(2)->getOffset();
-	TypePointer *ct = (TypePointer *)op->getIn(0)->getHighTypeReadFacing(op);
-	if ((ct->getMetatype() != TYPE_PTR)||(ct->getPtrTo()->getAlignSize() != AddrSpace::addressToByteInt(sz, ct->getWordSize())))
+	Datatype *ct = op->getIn(0)->getHighTypeReadFacing(op);
+	if (ct->getMetatype() != TYPE_PTR ||
+	    ((TypePointer *)ct)->getPtrTo()->getAlignSize() != AddrSpace::addressToByteInt(sz, ((TypePointer *)ct)->getWordSize()))
 	  data.opUndoPtradd(op,true);
       }
       else if (opc == CPUI_PTRSUB) {	// Check for PTRSUB that no longer fits pointer
@@ -4332,8 +4333,20 @@ void ActionConditionalConst::propagateConstant(Varnode *varVn,Varnode *constVn,F
 						// ...unless COPY is into something more interesting
     }
     if (constBlock->dominates(op->getParent())) {
-      int4 slot = op->getSlot(varVn);
-      data.opSetInput(op,constVn,slot);	// Replace ref with constant!
+      if (opc == CPUI_RETURN){
+          // CPUI_RETURN ops can't directly take constants
+          // as inputs
+          PcodeOp *copyBeforeRet = data.newOp(1, op->getAddr());
+          data.opSetOpcode(copyBeforeRet,CPUI_COPY);
+          data.opSetInput(copyBeforeRet,constVn,0);
+          data.newVarnodeOut(varVn->getSize(),varVn->getAddr(),copyBeforeRet);
+          data.opSetInput(op,copyBeforeRet->getOut(),1);
+          data.opInsertBefore(copyBeforeRet,op);
+      }
+      else {
+        int4 slot = op->getSlot(varVn);
+        data.opSetInput(op,constVn,slot);	// Replace ref with constant!
+      }
       count += 1;			// We made a change
     }
   }
@@ -4585,11 +4598,17 @@ int4 ActionInputPrototype::apply(Funcdata &data)
     for(int4 i=0;i<active.getNumTrials();++i) {
       ParamTrial &paramtrial(active.getTrial(i));
       if (paramtrial.isUnref() && paramtrial.isUsed()) {
-	vn = data.newVarnode(paramtrial.getSize(),paramtrial.getAddress());
-	vn = data.setInputVarnode(vn);
-	int4 slot = triallist.size();
-	triallist.push_back(vn);
-	paramtrial.setSlot(slot + 1);
+	if (data.hasInputIntersection(paramtrial.getSize(), paramtrial.getAddress())) {
+	  // There is something in the way of the unreferenced parameter, don't create it
+	  paramtrial.markNoUse();
+	}
+	else {
+	  vn = data.newVarnode(paramtrial.getSize(),paramtrial.getAddress());
+	  vn = data.setInputVarnode(vn);
+	  int4 slot = triallist.size();
+	  triallist.push_back(vn);
+	  paramtrial.setSlot(slot + 1);
+	}
       }
     }
     if (data.isHighOn())
