@@ -1,5 +1,5 @@
 # Getting Started with Ghidra
-The information provided in this document is effective as of Ghidra 12.0 and is subject to change 
+The information provided in this document is effective as of Ghidra 12.1 and is subject to change 
 with future releases.
 
 ## Table of Contents
@@ -165,7 +165,7 @@ The Debugger now uses Python to connect to the host platform's native debuggers.
 a [supported](#minimum-requirements) version of Python and some additional packages. These packages
 are included in the distribution, but you may still install them from PyPI if you prefer:
 * psutil
-* protobuf==3.20.3
+* protobuf>=3.20.3
 * Pybag>=2.2.12 (for WinDbg support)
 
 Different native debuggers have varying requirements, so you do not necessarily have to install all
@@ -458,9 +458,10 @@ There are several ways you can get help with using Ghidra:
 * GUI icons may not render correctly in some configurations of Linux. Setting 
   `VMARGS=-Dsun.java2d.opengl` to `true` in `<GhidraInstallDir>/support/launch.properties` may fix 
   this issue.
-* Non-reparenting window managers such as Xmonad and Sway may render Ghidra windows as blank. This
-  is a known java issue (https://bugs.openjdk.org/browse/JDK-8058197) which can only be addressed
-  by setting the environment variable `_JAVA_AWT_WM_NONREPARENTING=1` prior to launching Ghidra.
+* Non-reparenting window managers such as XMonad and Sway may render Ghidra windows as blank. This
+  is a known java issue (https://bugs.openjdk.org/browse/JDK-8058197) which can be addressed by
+  uncommenting `#ENVVARS_LINUX=_JAVA_AWT_WM_NONREPARENTING=1` in 
+  `<GhidraInstallDir>/support/launch.properties`.
 
 ### macOS
 * Building new Ghidra module extensions on macOS (OS X) using a network drive (including a
