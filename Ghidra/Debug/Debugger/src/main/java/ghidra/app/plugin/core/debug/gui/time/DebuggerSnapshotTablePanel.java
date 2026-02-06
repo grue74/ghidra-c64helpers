@@ -59,10 +59,11 @@ public class DebuggerSnapshotTablePanel extends JPanel {
 		EVENT_THREAD("Event Thread", String.class, SnapshotRow::getEventThreadName, true),
 		PC("PC", Address.class, SnapshotRow::getProgramCounter, true),
 		MODULE("Module", String.class, SnapshotRow::getModuleName, true),
-		FUNCTION("Function", ghidra.program.model.listing.Function.class, SnapshotRow::getFunction, true),
+		FUNCTION("Function", ghidra.program.model.listing.Function.class, SnapshotRow::getFunction,
+				true),
 		TIMESTAMP("Timestamp", Date.class, SnapshotRow::getTimeStamp, false),
 		SCHEDULE("Schedule", TraceSchedule.class, SnapshotRow::getSchedule, false),
-		DESCRIPTION("Description", String.class, SnapshotRow::getDescription, //
+		DESCRIPTION("Description", String.class, SnapshotRow::getDescription,
 				SnapshotRow::setDescription, true);
 
 		private final String header;
@@ -212,6 +213,39 @@ public class DebuggerSnapshotTablePanel extends JPanel {
 			};
 		}
 
+		Font lastFixedWidthFont;
+		Font fixedWidthBoldFont;
+		Font fixedWidthItalicFont;
+
+		Font computePlainFont(GTableCellRenderingData data) {
+			return data.getValue() instanceof Address ? getFixedWidthFont() : getDefaultFont();
+		}
+
+		void checkDeriveNewFonts() {
+			if (Objects.equals(lastFixedWidthFont, getFixedWidthFont())) {
+				return;
+			}
+			lastFixedWidthFont = getFixedWidthFont();
+			fixedWidthBoldFont = lastFixedWidthFont.deriveFont(Font.BOLD);
+			fixedWidthItalicFont = lastFixedWidthFont.deriveFont(Font.ITALIC);
+		}
+
+		Font computeBoldFont(GTableCellRenderingData data) {
+			if (data.getValue() instanceof Address) {
+				checkDeriveNewFonts();
+				return fixedWidthBoldFont;
+			}
+			return getBoldFont();
+		}
+
+		Font computeItalicFont(GTableCellRenderingData data) {
+			if (data.getValue() instanceof Address) {
+				checkDeriveNewFonts();
+				return fixedWidthItalicFont;
+			}
+			return getItalicFont();
+		}
+
 		@Override
 		public Component getTableCellRendererComponent(GTableCellRenderingData data) {
 			super.getTableCellRendererComponent(data);
@@ -221,22 +255,24 @@ public class DebuggerSnapshotTablePanel extends JPanel {
 				return this;
 			}
 			if (current.getViewSnap() == row.getSnap()) {
-				setBold();
+				setFont(computeBoldFont(data));
 			}
 			else if (current.getSnap() == row.getSnap()) {
-				setItalic();
+				setFont(computeItalicFont(data));
+			}
+			else {
+				setFont(computePlainFont(data));
 			}
 
 			TraceSnapshot snapshot = row.getSnapshot();
-			if (snapshot.getSchedule().isSnapOnly() ||
-				snapshot.getVersion() >= current.getTrace().getEmulatorCacheVersion()) {
+			if (snapshot.isStale(true)) {
+				setForeground(
+					data.isSelected() ? COLOR_FOREGROUND_STALE_SEL : COLOR_FOREGROUND_STALE);
+			}
+			else {
 				JTable table = data.getTable();
 				setForeground(
 					data.isSelected() ? table.getSelectionForeground() : table.getForeground());
-			}
-			else {
-				setForeground(
-					data.isSelected() ? COLOR_FOREGROUND_STALE_SEL : COLOR_FOREGROUND_STALE);
 			}
 
 			return this;
