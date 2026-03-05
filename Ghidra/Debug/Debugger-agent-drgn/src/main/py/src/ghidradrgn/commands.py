@@ -271,10 +271,11 @@ def ghidra_trace_create(start_trace: bool = True) -> None:
         prog.set_kernel()
     elif kind == "coredump":
         img = os.getenv('OPT_TARGET_IMG')
-        if img is not None:
-            prog.set_core_dump(img)
-            if '/' in img:
-                img = img[img.rindex('/')+1:]
+        if img is None:
+            return
+        prog.set_core_dump(img)
+        if '/' in img:
+            img = img[img.rindex('/')+1:]
     else:
         pid = os.getenv('OPT_TARGET_PID')
         if pid is not None:
@@ -297,7 +298,7 @@ def ghidra_trace_create(start_trace: bool = True) -> None:
             img = prog.main_module().name  # type: ignore
             util.selected_tid = prog.main_thread().tid
 
-    if start_trace and img is not None:
+    if start_trace:
         ghidra_trace_start(img)
 
     PROGRAMS[util.selected_pid] = prog
@@ -1146,7 +1147,7 @@ def put_frames() -> None:
     if nproc < 0:
         return
     nthrd = util.selected_thread()
-    if nthrd is None:
+    if nthrd is None or nthrd < 0:
         return
     thread = prog.thread(nthrd)
     if thread is None:
