@@ -293,7 +293,7 @@ public:
   virtual int4 findCompatibleResolve(Datatype *ct) const;	///< Find a resolution compatible with the given data-type
   virtual const TypeField *resolveTruncation(int8 offset,PcodeOp *op,int4 slot,int8 &newoff);
   int4 typeOrder(const Datatype &op) const { if (this==&op) return 0; return compare(op,10); }	///< Order this with -op- datatype
-  int4 typeOrderBool(const Datatype &op) const;	///< Order \b this with -op-, treating \e bool data-type as special
+  int4 typeOrderFormal(const Datatype &op) const;	///< Order \b this with \b op for selecting a formal high-level data-type
   void encodeRef(Encoder &encoder) const;	///< Encode a reference of \b this to a stream
   bool isPieceStructured(void) const;		///< Does \b this data-type consist of separate pieces?
   bool isPrimitiveWhole(void) const;		///< Is \b this made up of a single primitive
@@ -479,6 +479,7 @@ public:
   virtual bool isPtrsubMatching(int8 off,int8 extra,int8 multiplier) const;
   virtual Datatype *resolveInFlow(PcodeOp *op,int4 slot);
   virtual Datatype* findResolve(const PcodeOp *op,int4 slot);
+  virtual int4 findCompatibleResolve(Datatype *ct) const;	///< Find a resolution compatible with the given data-type
 };
 
 /// \brief Datatype object representing an array of elements
@@ -978,17 +979,19 @@ inline uint8 Datatype::getUnsizedId(void) const
   return id;
 }
 
-/// Order data-types, with special handling of the \e bool data-type. Data-types are compared
-/// using the normal ordering, but \e bool is ordered after all other data-types. A return value
-/// of 0 indicates the data-types are the same, -1 indicates that \b this is prefered (ordered earlier),
+/// Order data-types, preferring the most specialized, except deemphasize \e partial data-types,
+/// which can't be formal, and \e bool, which can be over specialized. A return value
+/// of 0 indicates the data-types are the same, -1 indicates that \b this is preferred (ordered earlier),
 /// and 1 indicates \b this is ordered later.
 /// \param op is the other data-type to compare with \b this
 /// \return -1, 0, or 1
-inline int4 Datatype::typeOrderBool(const Datatype &op) const
+inline int4 Datatype::typeOrderFormal(const Datatype &op) const
 
 {
   if (this == &op) return 0;
-  if (metatype == TYPE_BOOL) return 1;		// Never prefer bool over other data-types
+  if (metatype == TYPE_PARTIALUNION) return 1;		// Prefer partials the least
+  if (op.metatype == TYPE_PARTIALUNION) return -1;
+  if (metatype == TYPE_BOOL) return 1;			// Prefer bool less than integers
   if (op.metatype == TYPE_BOOL) return -1;
   return compare(op,10);
 }

@@ -1317,9 +1317,15 @@ Datatype *TypePointer::resolveInFlow(PcodeOp *op,int4 slot)
   if (ptrto->getMetatype() == TYPE_UNION) {
     Funcdata *fd = op->getParent()->getFuncdata();
     const ResolvedUnion *res = fd->getUnionField(this,op,slot);
-    if (res != (ResolvedUnion*)0)
+    if (res != (ResolvedUnion *)0)
       return res->getDatatype();
-    ScoreUnionFields scoreFields(*fd->getArch()->types,this,op,slot);
+    res = fd->getAddressBasedUnionField(this, op->getAddr(), slot);
+    if (res != (ResolvedUnion *)0) {
+      ResolvedUnion resolve(this,res->getFieldNum(),*fd->getArch()->types);
+      fd->setUnionField(this,op,slot,resolve);
+      return resolve.getDatatype();
+    }
+    ScoreUnionFields scoreFields(*fd,this,op,slot);
     fd->setUnionField(this,op,slot,scoreFields.getResult());
     return scoreFields.getResult().getDatatype();
   }
@@ -1336,6 +1342,15 @@ Datatype* TypePointer::findResolve(const PcodeOp *op,int4 slot)
       return res->getDatatype();
   }
   return this;
+}
+
+int4 TypePointer::findCompatibleResolve(Datatype *ct) const
+
+{
+  if (ct->getMetatype() == TYPE_PTR) {
+    return ptrto->findCompatibleResolve(((TypePointer *)ct)->ptrto);
+  }
+  return -1;
 }
 
 void TypeArray::printRaw(ostream &s) const
@@ -2530,7 +2545,13 @@ Datatype *TypeUnion::resolveInFlow(PcodeOp *op,int4 slot)
   const ResolvedUnion *res = fd->getUnionField(this, op, slot);
   if (res != (ResolvedUnion *)0)
     return res->getDatatype();
-  ScoreUnionFields scoreFields(*fd->getArch()->types,this,op,slot);
+  res = fd->getAddressBasedUnionField(this, op->getAddr(), slot);
+  if (res != (ResolvedUnion *)0) {
+    ResolvedUnion resolve(this,res->getFieldNum(),*fd->getArch()->types);
+    fd->setUnionField(this, op, slot, *res);
+    return resolve.getDatatype();
+  }
+  ScoreUnionFields scoreFields(*fd,this,op,slot);
   fd->setUnionField(this, op, slot, scoreFields.getResult());
   return scoreFields.getResult().getDatatype();
 }
@@ -2549,7 +2570,13 @@ const TypeField *TypeUnion::resolveTruncation(int8 offset,PcodeOp *op,int4 slot,
 
 {
   Funcdata *fd = op->getParent()->getFuncdata();
-  const ResolvedUnion *res = fd->getUnionField(this, op, slot);
+  const ResolvedUnion *res = fd->getUnionResolution(this, op, slot);
+  if (res == (ResolvedUnion *)0) {
+    res = fd->getAddressBasedUnionField(this, op->getAddr(), slot);
+    if (res != (ResolvedUnion *)0) {
+      fd->setUnionField(this, op, slot, *res);
+    }
+  }
   if (res != (ResolvedUnion *)0) {
     if (res->getFieldNum() >= 0) {
       const TypeField *field = getField(res->getFieldNum());
@@ -2558,7 +2585,7 @@ const TypeField *TypeUnion::resolveTruncation(int8 offset,PcodeOp *op,int4 slot,
     }
   }
   else if (op->code() == CPUI_SUBPIECE && slot == 1) {	// The slot is artificial in this case
-    ScoreUnionFields scoreFields(*fd->getArch()->types,this,offset,op);
+    ScoreUnionFields scoreFields(*fd,this,offset,op);
     fd->setUnionField(this, op, slot, scoreFields.getResult());
     if (scoreFields.getResult().getFieldNum() >= 0) {
       newoff = 0;
@@ -2566,7 +2593,7 @@ const TypeField *TypeUnion::resolveTruncation(int8 offset,PcodeOp *op,int4 slot,
     }
   }
   else {
-    ScoreUnionFields scoreFields(*fd->getArch()->types,this,offset,op,slot);
+    ScoreUnionFields scoreFields(*fd,this,offset,op,slot);
     fd->setUnionField(this, op, slot, scoreFields.getResult());
     if (scoreFields.getResult().getFieldNum() >= 0) {
       const TypeField *field = getField(scoreFields.getResult().getFieldNum());
@@ -2588,7 +2615,7 @@ const TypeField *TypeUnion::findTruncation(int8 offset,int4 sz,const PcodeOp *op
 {
   // No new scoring is done, but if a cached result is available, return it.
   const Funcdata *fd = op->getParent()->getFuncdata();
-  const ResolvedUnion *res = fd->getUnionField(this, op, slot);
+  const ResolvedUnion *res = fd->getUnionResolution(this, op, slot);
   if (res != (ResolvedUnion *)0 && res->getFieldNum() >= 0) {
     const TypeField *field = getField(res->getFieldNum());
     newoff = offset - field->offset;
@@ -2908,38 +2935,50 @@ void TypePartialUnion::encode(Encoder &encoder) const
 Datatype *TypePartialUnion::resolveInFlow(PcodeOp *op,int4 slot)
 
 {
+  Funcdata *fd = op->getParent()->getFuncdata();
+  const ResolvedUnion *res = fd->getUnionField(this, op, slot);
+  if (res != (ResolvedUnion *)0)
+    return res->getDatatype();
   Datatype *curType = container;
   int8 curOff = offset;
   while(curType != (Datatype *)0 && curType->getSize() > size) {
-    if (curType->getMetatype() == TYPE_UNION) {
-      const TypeField *field = curType->resolveTruncation(curOff, op, slot, curOff);
-      curType = (field == (const TypeField *)0) ? (Datatype *)0 : field->type;
+    if (curType->getMetatype() == TYPE_PARTIALUNION) {
+      TypePartialUnion *curPartial = (TypePartialUnion *)curType;
+      curOff += curPartial->getOffset();
+      int8 newOff;
+      const TypeField *field = curPartial->getParentUnion()->resolveTruncation(curOff, op, slot, newOff);
+      Architecture *glb = op->getParent()->getFuncdata()->getArch();
+      curType = (Datatype *)0;
+      if (field != (const TypeField *)0)
+	curType = glb->types->getExactPiece(field->type, curOff, size);
+      curOff = 0;
     }
-    else {
-      curType = curType->getSubType(curOff, &curOff);
+    else if (curType->getMetatype() == TYPE_UNION) {
+      const TypeField *field = curType->resolveTruncation(curOff, op, slot, curOff);
+      Architecture *glb = op->getParent()->getFuncdata()->getArch();
+      curType = (Datatype *)0;
+      if (field != (const TypeField *)0)
+	curType = glb->types->getExactPiece(field->type, curOff, size);
+      curOff = 0;
+    }
+    else {		// Should never reach here
+      curType = (Datatype *)0;
+      break;
     }
   }
-  if (curType != (Datatype *)0 && curType->getSize() == size)
-    return curType;
-  return stripped;
+  if (curType == (Datatype *)0 || curType->getSize() != size)
+    curType = stripped;
+  fd->updateUnionField(this, op, slot, curType);
+  return curType;
 }
 
 Datatype* TypePartialUnion::findResolve(const PcodeOp *op,int4 slot)
 
 {
-  Datatype *curType = container;
-  int8 curOff = offset;
-  while(curType != (Datatype *)0 && curType->getSize() > size) {
-    if (curType->getMetatype() == TYPE_UNION) {
-      Datatype *newType = curType->findResolve(op, slot);
-      curType = (newType == curType) ? (Datatype *)0 : newType;
-    }
-    else {
-      curType = curType->getSubType(curOff, &curOff);
-    }
-  }
-  if (curType != (Datatype *)0 && curType->getSize() == size)
-    return curType;
+  const Funcdata *fd = op->getParent()->getFuncdata();
+  const ResolvedUnion *res = fd->getUnionField(this, op, slot);
+  if (res != (ResolvedUnion *)0)
+    return res->getDatatype();
   return stripped;
 }
 
@@ -4535,9 +4574,6 @@ Datatype *TypeFactory::getExactPiece(Datatype *ct,int4 offset,int4 size)
     }
     if (ct->getSize() == size)
 	return ct;				// Perfect size match
-    if (ct->getMetatype() == TYPE_UNION) {
-      return getTypePartialUnion((TypeUnion *)ct, curOff, size);
-    }
     lastType = ct;
     lastOff = curOff;
     ct = ct->getSubType(curOff,&curOff);
@@ -4547,6 +4583,12 @@ Datatype *TypeFactory::getExactPiece(Datatype *ct,int4 offset,int4 size)
     type_metatype meta = lastType->getMetatype();
     if (meta == TYPE_STRUCT || meta == TYPE_ARRAY || meta == TYPE_PARTIALSTRUCT)
       return getTypePartialStruct(lastType, lastOff, size);
+    else if (meta == TYPE_UNION)
+      return getTypePartialUnion((TypeUnion *)lastType, lastOff, size);
+    else if (meta == TYPE_PARTIALUNION) {	// Truncate to smaller partial union
+      TypePartialUnion *partial = (TypePartialUnion *)lastType;
+      return getTypePartialUnion(partial->getParentUnion(),lastOff + partial->getOffset(), size);
+    }
     else if (lastType->isEnumType() && !lastType->hasStripped())
       return getTypePartialEnum((TypeEnum *)lastType, lastOff, size);
   }
