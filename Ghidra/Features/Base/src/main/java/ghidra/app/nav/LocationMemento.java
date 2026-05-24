@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,15 +15,15 @@
  */
 package ghidra.app.nav;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+
 import ghidra.framework.options.SaveState;
 import ghidra.program.model.listing.Program;
 import ghidra.program.util.AddressFieldLocation;
 import ghidra.program.util.ProgramLocation;
 import ghidra.util.Msg;
 import ghidra.util.SystemUtilities;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 
 public class LocationMemento {
 	private static final String PROGRAM_PATH = "PROGRAM_PATH_";
@@ -86,7 +86,8 @@ public class LocationMemento {
 			return false;
 		}
 		LocationMemento other = (LocationMemento) obj;
-		return (program == other.program && compareLocations(programLocation, other.programLocation));
+		return (program == other.program &&
+			compareLocations(programLocation, other.programLocation));
 	}
 
 	@Override
@@ -126,13 +127,10 @@ public class LocationMemento {
 		if (loc1.getClass() == loc2.getClass()) {
 			return true;
 		}
-		// at this point we know they have the some addresses, but different location types (fields)
+		// at this point we know they have the same addresses, but different location types (fields)
 		// also consider generic program locations to be equal to addressField locations
-		boolean isAddr1 =
-			loc1 instanceof AddressFieldLocation || loc1.getClass() == ProgramLocation.class;
-		boolean isAddr2 =
-			loc2 instanceof AddressFieldLocation || loc2.getClass() == ProgramLocation.class;
-		return isAddr1 & isAddr2;
+		return (loc1 instanceof AddressFieldLocation || loc1.getClass() == ProgramLocation.class) &&
+			(loc2 instanceof AddressFieldLocation || loc2.getClass() == ProgramLocation.class);
 	}
 
 	public void saveState(SaveState saveState) {
@@ -142,7 +140,6 @@ public class LocationMemento {
 		programLocation.saveState(saveState);
 	}
 
-	@SuppressWarnings("unchecked")
 	// we saved the class, it should be the right type
 	public static LocationMemento getLocationMemento(SaveState saveState, Program[] programs) {
 		String className = saveState.getString(MEMENTO_CLASS, null);
@@ -150,10 +147,15 @@ public class LocationMemento {
 			return null;
 		}
 
+		ClassLoader loader = LocationMemento.class.getClassLoader();
 		try {
-			Class<? extends LocationMemento> mementoClass =
-				(Class<? extends LocationMemento>) Class.forName(className);
+			Class<?> clazz = Class.forName(className, false, loader);
+			if (!LocationMemento.class.isAssignableFrom(clazz)) {
+				Msg.error(LocationMemento.class, "Class is not a LocationMemento: " + clazz);
+				return null;
+			}
 
+			Class<? extends LocationMemento> mementoClass = clazz.asSubclass(LocationMemento.class);
 			Constructor<? extends LocationMemento> constructor =
 				mementoClass.getConstructor(SaveState.class, Program[].class);
 			return constructor.newInstance(saveState, programs);
@@ -182,7 +184,8 @@ public class LocationMemento {
 
 			// Cause could be null here, so protect.
 			String message = cause == null ? "" : cause.getMessage();
-			throw new IllegalArgumentException("Unexpected exception restoring memento: " + message);
+			throw new IllegalArgumentException(
+				"Unexpected exception restoring memento: " + message);
 		}
 		return null;
 
