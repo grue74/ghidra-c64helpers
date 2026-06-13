@@ -15,8 +15,10 @@
  */
 package ghidra.app.plugin.core.debug.gui.listing;
 
-import static ghidra.app.plugin.core.debug.gui.DebuggerResources.GROUP_TRANSIENT_VIEWS;
+import static ghidra.app.plugin.core.debug.gui.DebuggerResources.*;
 
+import java.lang.invoke.MethodHandles;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 import org.jdom2.Element;
 
 import docking.ActionContext;
+import docking.ComponentProvider;
 import docking.action.MenuData;
 import ghidra.app.events.*;
 import ghidra.app.plugin.PluginCategoryNames;
@@ -39,12 +42,15 @@ import ghidra.app.util.viewer.format.FormatManager;
 import ghidra.app.util.viewer.listingpanel.ListingPanel;
 import ghidra.debug.api.action.AutoReadMemorySpec;
 import ghidra.debug.api.action.LocationTrackingSpec;
+import ghidra.debug.api.listing.DebuggerListing;
 import ghidra.debug.api.listing.MultiBlendedListingBackgroundColorModel;
 import ghidra.debug.api.tracemgr.DebuggerCoordinates;
 import ghidra.framework.options.SaveState;
 import ghidra.framework.plugintool.*;
+import ghidra.framework.plugintool.annotation.AutoConfigStateField;
 import ghidra.framework.plugintool.annotation.AutoServiceConsumed;
 import ghidra.framework.plugintool.util.PluginStatus;
+import ghidra.pcode.exec.SleighUtils.LitIdMode;
 import ghidra.program.model.address.*;
 import ghidra.program.util.ProgramLocation;
 import ghidra.program.util.ProgramSelection;
@@ -85,6 +91,10 @@ import ghidra.trace.model.program.TraceProgramView;
 	})
 public class DebuggerListingPlugin extends AbstractCodeBrowserPlugin<DebuggerListingProvider>
 		implements DebuggerListingService {
+
+	private static final AutoConfigState.ClassHandler<DebuggerListingPlugin> CONFIG_STATE_HANDLER =
+		AutoConfigState.wireHandler(DebuggerListingPlugin.class, MethodHandles.lookup());
+
 	private static final String KEY_CONNECTED_PROVIDER = "connectedProvider";
 	private static final String KEY_DISCONNECTED_COUNT = "disconnectedCount";
 	private static final String PREFIX_DISCONNECTED_PROVIDER = "disconnectedProvider";
@@ -120,6 +130,9 @@ public class DebuggerListingPlugin extends AbstractCodeBrowserPlugin<DebuggerLis
 	// NOTE: This plugin doesn't extend AbstractDebuggerPlugin
 	@SuppressWarnings("unused")
 	private AutoService.Wiring autoServiceWiring;
+
+	@AutoConfigStateField
+	protected LitIdMode goToSleighMode = LitIdMode.HEX;
 
 	private DebuggerCoordinates current = DebuggerCoordinates.NOWHERE;
 
@@ -178,6 +191,22 @@ public class DebuggerListingPlugin extends AbstractCodeBrowserPlugin<DebuggerLis
 			provider.goToCoordinates(current);
 			return provider;
 		}
+	}
+
+	@Override
+	public DebuggerListing createNewListing() {
+		return createNewDisconnectedProvider();
+	}
+
+	public String findNextCustomTitle() {
+		List<String> allTitles = disconnectedProviders.stream().map(ComponentProvider::getTitle).toList();
+		int i;
+		for (i = 0; i < allTitles.size(); i++) {
+			if (!allTitles.contains("Dynamic %d".formatted(i))) {
+				return "Dynamic %d".formatted(i);
+			}
+		}
+		return "Dynamic %d".formatted(i);
 	}
 
 	@Override
@@ -353,6 +382,24 @@ public class DebuggerListingPlugin extends AbstractCodeBrowserPlugin<DebuggerLis
 	}
 
 	@Override
+	public void setGoToSleighMode(LitIdMode mode) {
+		goToSleighMode = mode;
+	}
+
+	@Override
+	public LitIdMode getGoToSleighMode() {
+		return goToSleighMode;
+	}
+
+	@Override
+	public List<DebuggerListing> getAllListings() {
+		final List<DebuggerListing> ret = new ArrayList<>();
+		ret.add(connectedProvider);
+		ret.addAll(disconnectedProviders);
+		return ret;
+	}
+
+	@Override
 	public void writeDataState(SaveState saveState) {
 		SaveState connectedProviderState = new SaveState();
 		connectedProvider.writeDataState(connectedProviderState);
@@ -425,6 +472,8 @@ public class DebuggerListingPlugin extends AbstractCodeBrowserPlugin<DebuggerLis
 	@Override
 	public void writeConfigState(SaveState saveState) {
 		super.writeConfigState(saveState);
+		CONFIG_STATE_HANDLER.writeConfigState(this, saveState);
+
 		SaveState connectedProviderState = new SaveState();
 		connectedProvider.writeConfigState(connectedProviderState);
 		saveState.putXmlElement(KEY_CONNECTED_PROVIDER, connectedProviderState.saveToXml());
@@ -446,6 +495,8 @@ public class DebuggerListingPlugin extends AbstractCodeBrowserPlugin<DebuggerLis
 	@Override
 	public void readConfigState(SaveState saveState) {
 		super.readConfigState(saveState);
+		CONFIG_STATE_HANDLER.readConfigState(this, saveState);
+
 		Element connectedProviderElement = saveState.getXmlElement(KEY_CONNECTED_PROVIDER);
 		if (connectedProviderElement != null) {
 			SaveState connectedProviderState = new SaveState(connectedProviderElement);
