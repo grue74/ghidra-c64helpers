@@ -161,6 +161,7 @@ public class DataTypesProvider extends ComponentProviderAdapter {
 		addLocalAction(new CutAction(plugin));
 		addLocalAction(new CopyAction(plugin));
 		addLocalAction(new PasteAction(plugin));
+		addLocalAction(new CompareDataTypesAction(plugin));
 		addLocalAction(new ReplaceDataTypeAction(plugin));
 		addLocalAction(new MergeDataTypeAction(plugin));
 		addLocalAction(new DeleteAction(plugin));
@@ -299,8 +300,8 @@ public class DataTypesProvider extends ComponentProviderAdapter {
 		addLocalAction(viewCheckOutsAction);
 	}
 
-	private boolean hasFilter() {
-		return archiveGTree.isFiltered();
+	private boolean isFiltered(DataType dt) {
+		return archiveGTree.isFiltered() || !filterState.passesFilters(dt);
 	}
 
 	public DtFilterState getFilterState() {
@@ -790,7 +791,7 @@ public class DataTypesProvider extends ComponentProviderAdapter {
 		DataTypeNode dataTypeNode = node.getNode(dataType);
 		if (dataTypeNode == null) {
 
-			if (hasFilter()) {
+			if (isFiltered(dataType)) {
 				plugin.setStatus("Unable to find " + dataType.getName() +
 					".  It may be filtered out of view.  (Data Type Manager)");
 			}

@@ -1150,6 +1150,7 @@ MapEntry *ActionConstantPtr::isPointer(AddrSpace *spc,Varnode *vn,PcodeOp *op,in
   }
 
   if (rampoint.isInvalid()) return (MapEntry *)0;
+  if (!rampoint.highPtrPossible(1)) return (MapEntry *)0;
     // Since we are looking for a global address
     // Assume it is address tied and use empty usepoint
   MapEntry *entry = data.getScopeLocal()->getParent()->queryContainer(rampoint,1,Address());
@@ -5920,7 +5921,7 @@ void ActionDatabase::universalAction(Architecture *conf)
 	actprop->addRule( new RuleShift2Mult("analysis") );
 	actprop->addRule( new RuleShiftPiece("analysis") );
 	actprop->addRule( new RuleMultiCollapse("analysis") );
-	actprop->addRule( new RuleIndirectCollapse("analysis") );
+	actprop->addRule( new RuleAliasUpdate("analysis") );
 	actprop->addRule( new Rule2Comp2Mult("analysis") );
 	actprop->addRule( new RuleSub2Add("analysis") );
 	actprop->addRule( new RuleCarryElim("analysis") );
