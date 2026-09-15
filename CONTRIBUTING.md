@@ -57,8 +57,10 @@ smooth process when submitting a patch:
 - Unless it addresses a critical security update, avoid pull requests that update jars or other 3rd
   party libraries. It is preferred that these changes are made internally by the team. If you have
   a need for an updated library, please submit an issue with your request instead of a pull request.
-- Before submission, please squash your commits using a message that starts with the issue number
-  and a description of the changes.
+- Before submission, please squash your commits down to a single commit that briefly describes the
+  changes.
+- Please do not include the issue number that is being fixed in the pull request title field. 
+  Instead, use "Fixes #xxx" somewhere in the pull request description text box.
 - Isolate multiple patches from each other. If you wish to make several independent patches, do so 
   in separate, smaller pull requests that can be reviewed more easily.
 - Avoid submitting self-generated binary files as part of your pull request. Despite your best 

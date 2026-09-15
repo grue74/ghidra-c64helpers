@@ -20,6 +20,7 @@ import java.net.*;
 import java.util.*;
 
 import ghidra.framework.client.ClientUtil;
+import ghidra.framework.remote.GhidraServerHandle;
 import ghidra.util.Msg;
 import ghidra.util.classfinder.ClassSearcher;
 import ghidra.util.exception.NotFoundException;
@@ -109,6 +110,11 @@ public class Handler extends URLStreamHandler {
 				"ghidra protocol extension handler (" + extensionName + ") not found");
 		}
 		return protocolHandler;
+	}
+
+	@Override
+	protected int getDefaultPort() {
+		return GhidraServerHandle.DEFAULT_PORT;
 	}
 
 	@Override
