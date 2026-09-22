@@ -259,7 +259,10 @@ public class DefaultProject implements Project {
 		StatusCode responseCode = c.getStatusCode();
 		switch (responseCode) {
 			case OK:
-				break;
+				break; // project data is established below 
+
+			case CANCELLED:
+				return null; // e.g., user cancelled password request
 
 			case UNAUTHORIZED:
 				throw new IOException("Authorization failure");
@@ -639,7 +642,10 @@ public class DefaultProject implements Project {
 		TransientDataManager.getTransients(list);
 		for (DomainFile df : list) {
 			if (df != null && df.isOpen()) {
-				openFiles.add(df);
+				DomainObject openDomainObject = df.getOpenedDomainObject(this);
+				if (openDomainObject.isChangeable() && !openDomainObject.isTemporary()) {
+					openFiles.add(df);
+				}
 			}
 		}
 		return openFiles;
