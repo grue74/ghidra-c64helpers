@@ -45,6 +45,8 @@ model {
 			targetPlatform "mac_arm_64"
 			targetPlatform "freebsd_x86_64"
 			targetPlatform "freebsd_arm_64"
+			targetPlatform "freebsd_ppc_64"
+			targetPlatform "freebsd_ppc_64le"
 			targetPlatform "openbsd_x86_64"
 			targetPlatform "openbsd_arm_64"
 			sources {
@@ -62,6 +64,7 @@ model {
 		                include "pcoderaw.cc"
 		                include "translate.cc"
 		                include "opcodes.cc"
+		                include "metatype.cc"
 		                include "globalcontext.cc"
 		                include "capability.cc"
 		                include "architecture.cc"
@@ -159,6 +162,8 @@ model {
 			targetPlatform "mac_arm_64"
 			targetPlatform "freebsd_x86_64"
 			targetPlatform "freebsd_arm_64"
+			targetPlatform "freebsd_ppc_64"
+			targetPlatform "freebsd_ppc_64le"
 			targetPlatform "openbsd_x86_64"
 			targetPlatform "openbsd_arm_64"
 			sources {
@@ -176,6 +181,7 @@ model {
 						include "pcoderaw.cc"
 						include "translate.cc"
 						include "opcodes.cc"
+						include "metatype.cc"
 						include "globalcontext.cc"
 						include "sleigh.cc"
 						include "pcodecompile.cc"

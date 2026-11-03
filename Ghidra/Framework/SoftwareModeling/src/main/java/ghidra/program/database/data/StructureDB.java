@@ -746,7 +746,19 @@ class StructureDB extends CompositeDB implements StructureInternal {
 	@Override
 	public int getNumDefinedComponents() {
 		try (Closeable c = lock.read()) {
+			refreshIfNeeded();
 			return components.size();
+		}
+	}
+
+	@Override
+	public DataTypeComponentDB getDefinedComponent(int index) throws IndexOutOfBoundsException {
+		try (Closeable c = lock.read()) {
+			refreshIfNeeded();
+			if (index < 0 || index >= components.size()) {
+				throw new IndexOutOfBoundsException(index);
+			}
+			return components.get(index);
 		}
 	}
 
@@ -1583,8 +1595,16 @@ class StructureDB extends CompositeDB implements StructureInternal {
 		if (!(dataType instanceof StructureInternal)) {
 			throw new IllegalArgumentException();
 		}
+
+		try (Closeable _ = lock.write()) {
+			doReplaceWith(dataType);
+		}
+	}
+
+	private void doReplaceWith(DataType dataType) {
+
 		boolean isResolveCacheOwner = false;
-		try (Closeable c = lock.write()) {
+		try {
 			isResolveCacheOwner = dataMgr.activateResolveCache();
 			checkDeleted();
 			doReplaceWith((StructureInternal) dataType, true);

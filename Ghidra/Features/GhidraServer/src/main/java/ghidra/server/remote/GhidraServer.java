@@ -15,32 +15,18 @@
  */
 package ghidra.server.remote;
 
-import static ghidra.server.remote.GhidraServer.AuthMode.JAAS_LOGIN;
-import static ghidra.server.remote.GhidraServer.AuthMode.NO_AUTH_LOGIN;
-import static ghidra.server.remote.GhidraServer.AuthMode.PASSWORD_FILE_LOGIN;
-import static ghidra.server.remote.GhidraServer.AuthMode.PKI_LOGIN;
+import static ghidra.server.remote.GhidraServer.AuthMode.*;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.ServerSocket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.io.*;
+import java.net.*;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.rmi.server.RMIClientSocketFactory;
-import java.rmi.server.RMIServerSocketFactory;
-import java.rmi.server.UnicastRemoteObject;
+import java.rmi.server.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Collection;
-import java.util.Date;
-import java.util.Enumeration;
-import java.util.List;
+import java.util.*;
 
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.rmi.ssl.SslRMIClientSocketFactory;
@@ -57,29 +43,17 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.bouncycastle.asn1.x509.GeneralName;
 
+import db.buffers.DataBuffer;
 import generic.jar.ResourceFile;
 import generic.random.SecureRandomFactory;
 import ghidra.framework.Application;
 import ghidra.framework.ApplicationConfiguration;
-import ghidra.framework.remote.GhidraObjectInputFilter;
-import ghidra.framework.remote.GhidraPrincipal;
-import ghidra.framework.remote.GhidraServerHandle;
-import ghidra.framework.remote.RemoteRepositoryServerHandle;
-import ghidra.net.DefaultKeyManagerFactory;
-import ghidra.net.DefaultSSLContextInitializer;
-import ghidra.net.DefaultTrustManagerFactory;
-import ghidra.net.PKIUtils;
+import ghidra.framework.remote.*;
+import ghidra.net.*;
 import ghidra.server.RepositoryManager;
 import ghidra.server.UserManager;
-import ghidra.server.security.AnonymousAuthenticationModule;
-import ghidra.server.security.AuthenticationModule;
-import ghidra.server.security.JAASAuthenticationModule;
-import ghidra.server.security.Krb5ActiveDirectoryAuthenticationModule;
-import ghidra.server.security.PKIAuthenticationModule;
-import ghidra.server.security.PasswordFileAuthenticationModule;
-import ghidra.server.security.SSHAuthenticationModule;
+import ghidra.server.security.*;
 import ghidra.server.stream.BlockStreamServer;
-import ghidra.server.stream.RemoteBlockStreamHandle;
 import ghidra.util.SystemUtilities;
 import ghidra.util.exception.AssertException;
 import ghidra.util.exception.DuplicateNameException;
@@ -857,7 +831,7 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 				System.exit(0);
 			}
 			
-			int signingKeyCount = logServerCertificates("RSA") + logServerCertificates("ECDSA");
+			int signingKeyCount = logServerCertificates("RSA") + logServerCertificates("EC_EC");
 			if (signingKeyCount == 0) {
 				log.fatal("Failed to locate a certificate with digital-signature usage");
 				System.exit(0);
@@ -867,8 +841,7 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 			log.info("   RMI SSL port: " + ServerPortFactory.getRMISSLPort());
 			log.info("   Block Stream port: " + ServerPortFactory.getStreamPort());
 			log.info("   Block Stream compression: " +
-				(RemoteBlockStreamHandle.enableCompressedSerializationOutput ? "enabled"
-						: "disabled"));
+				(DataBuffer.isCompressedSerializationOutputEnabled() ? "enabled" : "disabled"));
 			log.info("   Root: " + serverRoot.getAbsolutePath());
 			log.info("   Auth: " + authMode.getDescription());
 			if (authMode == PASSWORD_FILE_LOGIN && defaultPasswordExpiration >= 0) {
@@ -957,7 +930,7 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 		for (String alias : aliases) {
 
 			X509Certificate[] certificateChain = km.getCertificateChain(alias);
-			X509Certificate x509Cert = certificateChain[certificateChain.length - 1];
+			X509Certificate x509Cert = certificateChain[0]; // inspect server certificate
 
 			if (x509Cert.getKeyUsage()[0]) {
 				++signingCount;
@@ -982,22 +955,22 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 
 			log.info(pad + "Key Usage: " + PKIUtils.formatKeyUsage(x509Cert));
 
-			boolean foundEntries = false;
+			boolean foundSANEntries = false;
 			try {
 				Collection<List<?>> sanList = x509Cert.getSubjectAlternativeNames();
 				if (sanList != null) {
 					for (List<?> sanEntry : sanList) {
-					Integer type = (Integer) sanEntry.get(0);
-					Object value = sanEntry.get(1);
-					if (type == GeneralName.iPAddress || type == GeneralName.dNSName) {
-						if (!foundEntries) {
-							log.info(pad + "Subject Alternative Names:");
+						Integer type = (Integer) sanEntry.get(0);
+						Object value = sanEntry.get(1);
+						if (type == GeneralName.iPAddress || type == GeneralName.dNSName) {
+							if (!foundSANEntries) {
+								log.info(pad + "Subject Alternative Names:");
+							}
+							foundSANEntries = true;
+							log.info(pad + "   " + value);
 						}
-						foundEntries = true;
-						log.info(pad + "   " + value);
 					}
 				}
-			}
 			}
 			catch (Exception e) {
 				log.fatal("Error reading certificate SANs: " + e.getMessage());
@@ -1005,8 +978,8 @@ public class GhidraServer extends UnicastRemoteObject implements GhidraServerHan
 			}
 
 			// Generally a server signing cert needs SAN entries
-			if (x509Cert.getKeyUsage()[0] && !foundEntries) {
-				log.warn(pad + "** No Hostname or IP Address SANs are defined **");
+			if (x509Cert.getKeyUsage()[0] && !foundSANEntries) {
+				log.warn(pad + "** No Hostname or IP Address SANs are defined by certificate **");
 			}
 		}
 		return signingCount;

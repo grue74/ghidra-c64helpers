@@ -36,7 +36,11 @@ first, consider the following tips to ensure a smooth process when submitting a 
   fully describe the bug in the pull request/patch description text box.
 
 - If using "AI" to assist in development, please apply extra scrutiny to its suggestions, in terms
-  of both correctness and adherence to our [legal](#legal) requirements.
+  of both correctness and adherence to our [legal](#legal) requirements. Do not include an
+  Architecture Decision Record (ADR) with your pull request. AI-generated unit tests should only
+  be included with your pull request if they add coverage to an existing test file and make
+  architectual sense to be there. When in doubt, do not include unit tests in your pull request
+  unless a Ghidra team member asks you to during the review process.
 
 - Limit your patches to the smallest reasonable change to achieve your intended goal. For example, 
   do not make unnecessary indentation changes; but don't go out of your way to make the patch so 
@@ -84,6 +88,10 @@ first, consider the following tips to ensure a smooth process when submitting a 
 - Be prepared to answer questions from reviewers. They may have further questions before accepting
   your patch, and may even propose changes. Please accept this feedback constructively, and not as a
   rejection of your proposed change.
+
+- If you want to update your pull request branch with the latest commits to `master`, please rebase
+  your branch onto `master`, rather than merging it into your branch. Then, force-push your rebased
+  branch. Note that a simple push will fail after a rebase, it has to be a "force-push".
 
 ## Review
 - We welcome code reviews from anyone. A committer is required to formally accept and merge the 

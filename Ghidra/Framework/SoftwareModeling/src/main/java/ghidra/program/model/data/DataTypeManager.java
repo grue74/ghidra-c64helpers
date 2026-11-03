@@ -20,8 +20,8 @@ import java.util.*;
 import db.Transaction;
 import ghidra.framework.model.DomainObject;
 import ghidra.program.database.SpecExtension;
-import ghidra.program.model.dtarchive.PersistentDataTypeArchive;
 import ghidra.program.model.dtarchive.DataTypeStore;
+import ghidra.program.model.dtarchive.PersistentDataTypeArchive;
 import ghidra.program.model.lang.*;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.Program;
@@ -196,6 +196,9 @@ public interface DataTypeManager {
 	 * Unlike {@link #findDataTypes(String, List)}, data types with a {@code .conflict} extension 
 	 * will not be included in the results of this method unless they explicitly match the provided
 	 * name.
+	 * <p>
+	 * This method may be significantly slower than {@link #findDataType(String)}, as this method 
+	 * will check every data type while the other version will use a binary search.
 	 * 
 	 * @param name name to match; may contain wildcards
 	 * @param list list that will be populated with matching DataType objects
@@ -515,7 +518,7 @@ public interface DataTypeManager {
 	 * archive closed out from under it, can add a consumer to the archive which then would need
 	 * to be released when done with it.
 	 */
-	@Deprecated(since = "12.2", forRemoval = true)
+	@Deprecated(since = "12.3", forRemoval = true)
 	public void close();
 
 	/**

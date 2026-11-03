@@ -283,8 +283,16 @@ class UnionDB extends CompositeDB implements UnionInternal {
 		if (!(dataType instanceof UnionInternal)) {
 			throw new IllegalArgumentException();
 		}
+
+		try (Closeable _ = lock.write()) {
+			doReplaceWith(dataType);
+		}
+	}
+
+	private void doReplaceWith(DataType dataType) {
 		boolean isResolveCacheOwner = false;
-		try (Closeable c = lock.write()) {
+
+		try {
 			isResolveCacheOwner = dataMgr.activateResolveCache();
 			checkDeleted();
 			doReplaceWith((UnionInternal) dataType, true);
@@ -389,14 +397,19 @@ class UnionDB extends CompositeDB implements UnionInternal {
 	}
 
 	@Override
-	public DataTypeComponentDB getComponent(int ordinal) {
+	public DataTypeComponentDB getDefinedComponent(int index) throws IndexOutOfBoundsException {
 		try (Closeable c = lock.read()) {
 			refreshIfNeeded();
-			if (ordinal < 0 || ordinal >= components.size()) {
-				return null;
+			if (index < 0 || index >= components.size()) {
+				throw new IndexOutOfBoundsException(index);
 			}
-			return components.get(ordinal);
+			return components.get(index);
 		}
+	}
+
+	@Override
+	public DataTypeComponentDB getComponent(int ordinal) {
+		return getDefinedComponent(ordinal);
 	}
 
 	@Override

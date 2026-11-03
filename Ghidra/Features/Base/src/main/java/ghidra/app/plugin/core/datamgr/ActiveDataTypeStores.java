@@ -147,12 +147,23 @@ class ActiveDataTypeStores {
 				if (openedDf instanceof DomainFileProxy proxy) {
 					openedDf = proxy.getOriginalDomainFile();
 				}
-				if (openedVersion == version && domainFile.equals(openedDf)) {
+
+				if (domainFile.equals(openedDf) && isCorrectVersion(openedVersion, version)) {
 					return projectArchive;
 				}
 			}
 		}
 		return null;
+	}
+
+	private boolean isCorrectVersion(int openedVersion, int requestedVersion) {
+
+		if (openedVersion == requestedVersion) {
+			return true;
+		}
+
+		// see if we are asking for the current version 
+		return requestedVersion == DomainFile.DEFAULT_VERSION;
 	}
 
 	FileDataTypeArchive getArchiveForFile(ResourceFile file) {
@@ -497,6 +508,14 @@ class ActiveDataTypeStores {
 			modCount++;
 			for (DataTypeManagerChangeListener listener : dataTypeManagerListeners) {
 				listener.dataTypeMoved(dtm, oldPath, newPath);
+			}
+		}
+
+		@Override
+		public void dataTypeRemoved(DataTypeManager dtm, DataType dt) {
+			modCount++;
+			for (DataTypeManagerChangeListener listener : dataTypeManagerListeners) {
+				listener.dataTypeRemoved(dtm, dt);
 			}
 		}
 

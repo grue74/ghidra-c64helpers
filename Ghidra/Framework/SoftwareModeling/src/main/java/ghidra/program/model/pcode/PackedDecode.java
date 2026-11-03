@@ -4,9 +4,9 @@
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,6 +20,7 @@ import java.util.ArrayList;
 
 import ghidra.program.model.address.AddressFactory;
 import ghidra.program.model.address.AddressSpace;
+import ghidra.program.model.pcode.LinkedByteBuffer.Position;
 
 /*
  * A byte-based decoder designed to marshal info to the decompiler efficiently
@@ -78,9 +79,9 @@ public class PackedDecode implements Decoder, Closeable {
 	private AddressFactory addrFactory;
 	protected AddressSpace[] spaces;
 	private LinkedByteBuffer inStream;
-	private LinkedByteBuffer.Position startPos;
-	private LinkedByteBuffer.Position curPos;
-	private LinkedByteBuffer.Position endPos;
+	private Position startPos;
+	private Position curPos;
+	private Position endPos;
 	private boolean attributeRead;
 
 	/**
@@ -90,17 +91,11 @@ public class PackedDecode implements Decoder, Closeable {
 	public PackedDecode() {
 		addrFactory = null;
 		inStream = null;
-		startPos = new LinkedByteBuffer.Position();
-		curPos = new LinkedByteBuffer.Position();
-		endPos = new LinkedByteBuffer.Position();
 	}
 
 	public PackedDecode(AddressFactory addrFactory) {
 		this.addrFactory = addrFactory;
 		inStream = null;
-		startPos = new LinkedByteBuffer.Position();
-		curPos = new LinkedByteBuffer.Position();
-		endPos = new LinkedByteBuffer.Position();
 		buildAddrSpaceArray();
 	}
 
@@ -116,13 +111,7 @@ public class PackedDecode implements Decoder, Closeable {
 	public PackedDecode(InputStream stream, String desc) throws IOException {
 		addrFactory = null;
 		inStream = null;
-		startPos = new LinkedByteBuffer.Position();
-		curPos = new LinkedByteBuffer.Position();
-		endPos = new LinkedByteBuffer.Position();
 		open(Integer.MAX_VALUE, desc);
-		startPos.buffer = inStream;
-		curPos.buffer = inStream;
-		endPos.buffer = inStream;
 		inStream.ingestStreamAsNeeded(stream, endPos);
 	}
 
@@ -222,8 +211,11 @@ public class PackedDecode implements Decoder, Closeable {
 	}
 
 	@Override
-	public void open(int max, String desc) {
-		inStream = new LinkedByteBuffer(max, ELEMENT_END, desc);
+	public void open(long max, String desc) {
+		inStream = new LinkedByteBuffer(max, desc);
+		startPos = inStream.allocatePosition();
+		curPos = inStream.allocatePosition();
+		endPos = inStream.allocatePosition();
 	}
 
 	/**
@@ -253,8 +245,8 @@ public class PackedDecode implements Decoder, Closeable {
 
 	@Override
 	public void endIngest() {
-		inStream.pad();
-		inStream.getStartPosition(endPos);
+		inStream.endIngest();
+		endPos.setToStart();
 	}
 
 	@Override
@@ -438,8 +430,7 @@ public class PackedDecode implements Decoder, Closeable {
 	public long readSignedIntegerExpectString(String expect, long expectval)
 			throws DecoderException {
 		long res;
-		LinkedByteBuffer.Position tmpPos = new LinkedByteBuffer.Position();
-		tmpPos.buffer = inStream;
+		Position tmpPos = inStream.allocatePosition();
 		tmpPos.copy(curPos);
 		byte header1 = tmpPos.getNextByte();
 		if ((header1 & HEADEREXTEND_MASK) != 0) {
@@ -514,28 +505,7 @@ public class PackedDecode implements Decoder, Closeable {
 		length = (int) readInteger(length);
 
 		attributeRead = true;
-		int curLen = curPos.array.length - curPos.current;
-		if (curLen >= length) {
-			String res = new String(curPos.array, curPos.current, length);
-			curPos.advancePosition(length);
-			return res;
-		}
-		int size = curLen;
-		byte[] buf = new byte[length];
-		System.arraycopy(curPos.array, curPos.current, buf, 0, curLen);
-		length -= curLen;
-		curPos.advancePosition(curLen);
-		while (length > 0) {
-			curLen = curPos.array.length - curPos.current;
-			if (curLen > length) {
-				curLen = length;
-			}
-			System.arraycopy(curPos.array, curPos.current, buf, size, curLen);
-			size += curLen;
-			length -= curLen;
-			curPos.advancePosition(curLen);
-		}
-		return new String(buf, 0, size);
+		return curPos.getNextString(length);
 	}
 
 	@Override
@@ -613,5 +583,23 @@ public class PackedDecode implements Decoder, Closeable {
 		int opcode = readOpcode();
 		curPos.copy(startPos);
 		return opcode;
+	}
+
+	@Override
+	public MetaDataType readDataTypeMeta() throws DecoderException {
+		int val = (int) readSignedInteger();
+		MetaDataType meta = MetaDataType.getById(val);
+		if (meta == null) {
+			throw new DecoderException("PackedDecoder: bad meta-type");
+		}
+		return meta;
+	}
+
+	@Override
+	public MetaDataType readDataTypeMeta(AttributeId attribId) throws DecoderException {
+		findMatchingAttribute(attribId);
+		MetaDataType metatype = readDataTypeMeta();
+		curPos.copy(startPos);
+		return metatype;
 	}
 }

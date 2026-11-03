@@ -124,10 +124,7 @@ public class ObjcMessageAnalyzer extends AbstractAnalyzer {
 		}
 
 		if (dataTypes == null) {
-			dataTypes = getDataTypes(program, log);
-			if (dataTypes == null) {
-				return false;
-			}
+			dataTypes = getDataTypes(program);
 		}
 
 		// Fix __objc_msgSend() function signatures
@@ -190,7 +187,7 @@ public class ObjcMessageAnalyzer extends AbstractAnalyzer {
 		}
 	}
 
-	private DataTypes getDataTypes(Program program, MessageLog log) {
+	private DataTypes getDataTypes(Program program) {
 		// Get the data types that we'll need to use
 		ProgramBasedDataTypeManager dtm = program.getDataTypeManager();
 		CategoryPath cat = Objc2Constants.CATEGORY_PATH;
@@ -200,13 +197,19 @@ public class ObjcMessageAnalyzer extends AbstractAnalyzer {
 		DataType sel = dtm.getDataType(cat, "SEL");
 		DataType classT = dtm.getDataType(cat, "class_t");
 		DataType messageRef = dtm.getDataType(cat, "message_ref");
+
+		// A program that sends messages but defines no classes or methods has no metadata to
+		// create ID and SEL from, so create them the same way Objc1TypeEncodings does.
+		// Without class_t, objc_super.super_class is a plain pointer.
+		if (id == null) {
+			id = new TypedefDataType(cat, "ID",
+				ptrSize == 8 ? new QWordDataType() : new DWordDataType());
+		}
+		if (sel == null) {
+			sel = new TypedefDataType(cat, "SEL", new PointerDataType(new CharDataType(), ptrSize));
+		}
 		if (messageRef == null) {
 			messageRef = id;
-		}
-		if (ObjectUtils.anyNull(id, sel, messageRef, classT)) {
-			log.appendMsg("ERROR: Required Objective-C data type not found in data type manager");
-			log.appendMsg("Try adding libobjc.dylib");
-			return null;
 		}
 		DataType messageRefPtr = new PointerDataType(messageRef, ptrSize);
 		StructureDataType objcSuper = new StructureDataType(cat, "objc_super", 0);
@@ -261,7 +264,7 @@ public class ObjcMessageAnalyzer extends AbstractAnalyzer {
 						params.add(
 							new ParameterImpl("message_ref", dataTypes.messageRefPtr, program));
 						break;
-					case String s when isStub:
+					case String _ when isStub:
 						params.add(new ParameterImpl("self", dataTypes.id, program));
 						break;
 					default:
@@ -323,6 +326,10 @@ public class ObjcMessageAnalyzer extends AbstractAnalyzer {
 
 			int stretParamShift = isStructReturnCall(program, inputs[0], monitor) ? 1 : 0;
 			boolean isStub = isObjcMsgSendStub(program, callTarget);
+			if (inputs.length <= (isStub ? 1 : 2) + stretParamShift) {
+				// The decompiler found fewer parameters than the message send needs
+				continue;
+			}
 			Varnode receiverParam = inputs[1 + stretParamShift];
 			Varnode selectorParam = !isStub ? inputs[2 + stretParamShift] : null;
 			String receiver =
@@ -964,8 +971,9 @@ public class ObjcMessageAnalyzer extends AbstractAnalyzer {
 		List<Symbol> functionSymbols = symbolTable.getSymbols(currentMethodName, namespace);
 		if (functionSymbols.isEmpty()) {
 			// Walk up the superclass chain to see if the method is inherited
+			// null for class namespaces without Objective-C metadata (e.g. external classes)
 			List<Objc2Class> classList = classMap.get(namespace.getName());
-			if (classList.size() == 1) {
+			if (classList != null && classList.size() == 1) {
 				Objc2Class superClass = classList.getFirst().getSuperClass();
 				if (superClass != null) {
 					Objc2ClassRW data = superClass.getData();

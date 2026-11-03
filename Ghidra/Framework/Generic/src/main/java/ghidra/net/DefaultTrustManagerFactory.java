@@ -189,7 +189,8 @@ public class DefaultTrustManagerFactory {
 	/**
 	 * Validate a client certificate ensuring that it is not expired and is
 	 * trusted based upon the active trust managers.
-	 * @param certChain X509 certificate chain
+	 * @param certChain X509 certificate chain with the client identity first, followed by its
+	 * issuing CAs; the root certificate may be omitted
 	 * @param authType authentication type (i.e., "RSA")
 	 * @throws CertificateException if certificate validation fails
 	 */
@@ -538,8 +539,8 @@ public class DefaultTrustManagerFactory {
 		}
 		catch (Exception e) {
 			wrappedTrustManager.caError = e;
-			Msg.error(DefaultTrustManagerFactory.class,
-				"OS trust store load failed: " + e.getMessage());
+			Msg.warn(DefaultTrustManagerFactory.class,
+				"OS Truststore load failed: " + e.getMessage());
 		}
 	}
 
@@ -575,7 +576,7 @@ public class DefaultTrustManagerFactory {
 				}
 			}
 		}
-		throw new KeyStoreException("X509 CA certificates not found");
+		throw new KeyStoreException("X509 trusted CA certificates not found");
 	}
 
 }
