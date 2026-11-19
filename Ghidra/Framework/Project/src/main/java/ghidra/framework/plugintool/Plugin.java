@@ -30,6 +30,7 @@ import ghidra.util.Msg;
 import ghidra.util.SystemUtilities;
 import ghidra.util.classfinder.ClassSearcher;
 import ghidra.util.classfinder.ExtensionPoint;
+import utility.function.Callback;
 
 /**
  * Plugins are a basic building block in Ghidra, used to bundle features or capabilities
@@ -469,8 +470,8 @@ public abstract class Plugin implements ExtensionPoint, PluginEventListener, Ser
 	}
 
 	/**
-	 * Fire the given plugin event; the tool notifies all other plugins
-	 * who are interested in receiving the given event type.
+	 * Fire the given plugin event; the tool notifies all other plugins that are interested in 
+	 * receiving the given event type.
 	 * @param event event to fire
 	 */
 	public void firePluginEvent(PluginEvent event) {
@@ -478,6 +479,18 @@ public abstract class Plugin implements ExtensionPoint, PluginEventListener, Ser
 			event.setSourceName(getName());
 			tool.firePluginEvent(event);
 		}
+	}
+
+	/**
+	 * Fire the given plugin event; the tool notifies all other plugins that are interested in 
+	 * receiving the given event type.
+	 * @param event event to fire
+	 * @param postEventCallback an optional callback that gets called when this event has been 
+	 * processed, before any follow-up events are processed.
+	 */
+	public void firePluginEvent(PluginEvent event, Callback postEventCallback) {
+		event.setPostEventCallback(postEventCallback);
+		firePluginEvent(event);
 	}
 
 	Class<?>[] getServiceClasses() {
@@ -726,9 +739,12 @@ public abstract class Plugin implements ExtensionPoint, PluginEventListener, Ser
 	}
 
 	/**
-	 * Called to force this plugin to terminate any tasks it has running and
-	 * apply any unsaved data to domain objects or files. If it can't do
-	 * this or the user cancels then this returns false.
+	 * Standard plugins will typically not use this method.  Returns false if a plugin decides it
+	 * cannot be closed for some reason, such as an important task is running.
+	 * <p>
+	 * Note: plugins overriding this method should not prompt the user to save data.  Instead they
+	 * should use {@link #hasUnsaveData()} and {@link #getUnsavedData()}.
+	 * 
 	 * @return true if this plugin can close.
 	 */
 	protected boolean canClose() {
@@ -748,26 +764,53 @@ public abstract class Plugin implements ExtensionPoint, PluginEventListener, Ser
 	 * Called to allow this plugin to flush any caches to the domain object before it is
 	 * saved.
 	 * @param dObj domain object about to be saved
+	 * @deprecated there is nothing to replace this method
 	 */
+	@Deprecated(since = "12.3", forRemoval = true)
 	protected void prepareToSave(DomainObject dObj) {
-		// do nothing by default; subclasses should override as needed
+		// stub
 	}
 
 	/**
 	 * Called to force this plugin to save any domain object data it is controlling.
 	 * @return false if this plugin controls a domain object, but couldn't
 	 * save its data or the user canceled the save.
+	 * @deprecated plugins will now be asked to {@link #getUnsavedData()} instead 
 	 */
+	@Deprecated(since = "12.3", forRemoval = true)
 	protected boolean saveData() {
 		return true;
 	}
 
 	/**
-	 * Returns true if this plugin has data that needs saving;
-	 * @return true if this plugin has data that needs saving;
+	 * Returns true if this plugin has data that needs saving. Data that needs saving must be 
+	 * returned from {@link #getUnsavedData()}.
+	 * 
+	 * @return true if this plugin has data that needs saving
+	 * @see #getUnsavedData()
 	 */
 	protected boolean hasUnsaveData() {
 		return false;
+	}
+
+	/**
+	 * Returns any data that needs to be saved. The user will be given a choice to save the items
+	 * return from this method. Plugins should also override {@link #hasUnsaveData()} when they 
+	 * override this method.
+	 * 
+	 * @return data that needs to be saved
+	 */
+	protected List<PluginSaveable> getUnsavedData() {
+		return List.of();
+	}
+
+	/**
+	 * Returns a saveable for the given domain object.  Most plugins will return null.
+	 * @param dobj the domain object
+	 * @return a saveable
+	 */
+	protected PluginSaveable getSaveable(DomainObject dobj) {
+		return null;
 	}
 
 	/**
